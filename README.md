@@ -9,7 +9,6 @@ This folder contains the local artifacts to run your LinkedIn PR workflow:
 - `approval_log.md`: Approval history.
 - `checklist.md`: QA + approval gates.
 - `gitlab_setup.md`: Always-on GitLab CI setup guide.
-- `ideas/`: Monday-style local idea board with subideas.
 
 Workflow:
 1. Update `truth_file.md` with any new approved facts.
