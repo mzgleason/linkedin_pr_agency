@@ -9,5 +9,10 @@
   "last_feedback_message_id": "",
   "draft_files": [],
   "sent_post_dates": [],
-  "last_weekend_nudge_date": ""
+  "last_weekend_nudge_date": "",
+  "weekend_nudge_thread_id": "",
+  "weekend_nudge_last_message_id": "",
+  "storyboard_thread_id": "",
+  "storyboard_message_id": "",
+  "storyboard_file": ""
 }

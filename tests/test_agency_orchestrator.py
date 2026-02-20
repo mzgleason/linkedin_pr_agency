@@ -13,6 +13,7 @@ from agency_orchestrator import (  # noqa: E402
     is_approval,
     load_approved_draft_files,
     needs_revision,
+    parse_approval_targets,
     parse_json_block,
     slugify,
     weekly_readiness,
@@ -107,6 +108,16 @@ class AgencyOrchestratorTests(unittest.TestCase):
             ao.APPROVAL_LOG_PATH = original_log
         self.assertFalse(readiness["ready"])
         self.assertEqual(len(readiness["missing_approvals"]), 2)
+
+    def test_parse_approval_targets(self):
+        pending = [
+            "drafts/2026-02-25_short_workflow_improved.md",
+            "drafts/2026-02-27_short_unexpected_question.md",
+        ]
+        approved = parse_approval_targets("APPROVE 2026-02-25", pending)
+        self.assertEqual(approved, ["drafts/2026-02-25_short_workflow_improved.md"])
+        approved_all = parse_approval_targets("approve all", pending)
+        self.assertEqual(sorted(approved_all), sorted(pending))
 
 
 if __name__ == "__main__":

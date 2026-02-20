@@ -39,10 +39,12 @@ requests one feedback round, and applies revisions.
 - `python agency_orchestrator.py`
 
 Autonomous behavior:
-- On Fri/Sat/Sun, sends an action-needed email if next week's three posts are
-  not fully drafted and approved.
+- On Fri/Sat/Sun, sends an action-needed email with full unapproved draft text
+  if next week's three posts are not fully drafted and approved.
 - On scheduled post dates, emails the approved post content for manual
   copy/paste publishing.
+- New weekly gate: interview -> storyboard draft -> storyboard approval ->
+  post drafting.
 
 ## Observability
 - Scheduled pipelines run credential preflight before orchestration.

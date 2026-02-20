@@ -32,6 +32,11 @@ STATE_DEFAULTS = {
     "draft_files": [],
     "sent_post_dates": [],
     "last_weekend_nudge_date": "",
+    "weekend_nudge_thread_id": "",
+    "weekend_nudge_last_message_id": "",
+    "storyboard_thread_id": "",
+    "storyboard_message_id": "",
+    "storyboard_file": "",
 }
 
 
@@ -97,6 +102,11 @@ def read_file(path: Path):
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8").strip()
+
+
+def parse_iso_date_from_filename(path):
+    match = re.search(r"(20\d{2}-\d{2}-\d{2})_", path)
+    return match.group(1) if match else ""
 
 
 def load_approved_draft_files():
@@ -188,10 +198,7 @@ def maybe_send_weekend_nudge(now: datetime, state, week_start, readiness):
     if state["last_weekend_nudge_date"] == today_iso:
         return False
 
-    lines = [
-        f"Next-week content is not fully ready for week of {week_start}.",
-        "",
-    ]
+    lines = [f"Next-week content is not fully ready for week of {week_start}.", ""]
     if readiness["missing_drafts"]:
         lines.append("Missing drafts:")
         lines.extend([f"- {item}" for item in readiness["missing_drafts"]])
@@ -200,13 +207,91 @@ def maybe_send_weekend_nudge(now: datetime, state, week_start, readiness):
         lines.append("Missing approvals:")
         lines.extend([f"- {item}" for item in readiness["missing_approvals"]])
         lines.append("")
-    lines.append("Goal: end weekend with all three posts drafted and approved.")
-    send_email(
+        lines.append("Drafts awaiting approval:")
+        lines.append("")
+        for rel in readiness["missing_approvals"]:
+            text = read_file(ROOT / rel)
+            title, body = parse_title_and_body(text)
+            lines.extend(
+                [
+                    f"--- {rel} ---",
+                    f"Title: {title}",
+                    body,
+                    "",
+                ]
+            )
+    lines.extend(
+        [
+            "Reply options:",
+            "- APPROVE ALL",
+            "- APPROVE YYYY-MM-DD (example: APPROVE 2026-02-25)",
+            "- REVISE YYYY-MM-DD: <notes>",
+            "",
+            "Goal: end weekend with all three posts drafted and approved.",
+        ]
+    )
+    msg_id, thread_id = send_email(
         f"Action Needed - Complete Next Week's LinkedIn Series ({week_start})",
         "\n".join(lines).strip(),
     )
     state["last_weekend_nudge_date"] = today_iso
+    state["weekend_nudge_thread_id"] = thread_id
+    state["weekend_nudge_last_message_id"] = msg_id
     return True
+
+
+def parse_approval_targets(reply_text, pending_paths):
+    lowered = reply_text.lower()
+    if "approve all" in lowered:
+        return list(pending_paths)
+    targets = set()
+    for line in reply_text.splitlines():
+        match = re.search(r"approve\s+(20\d{2}-\d{2}-\d{2})", line, re.IGNORECASE)
+        if not match:
+            continue
+        wanted_date = match.group(1)
+        for rel in pending_paths:
+            if parse_iso_date_from_filename(rel) == wanted_date:
+                targets.add(rel)
+    return sorted(targets)
+
+
+def append_approval_log(approved_paths, notes):
+    if not approved_paths:
+        return
+    if not APPROVAL_LOG_PATH.exists():
+        APPROVAL_LOG_PATH.write_text(
+            "# Approval Log\n\n| Date | Post | Status | Notes |\n|---|---|---|---|\n",
+            encoding="utf-8",
+        )
+    rows = []
+    today = datetime.utcnow().date().isoformat()
+    for rel in approved_paths:
+        rows.append(f"| {today} | `{rel}` | Approved | {notes} |")
+    with APPROVAL_LOG_PATH.open("a", encoding="utf-8") as f:
+        f.write("\n" + "\n".join(rows) + "\n")
+
+
+def maybe_process_weekend_approval_reply(state, readiness):
+    if not state.get("weekend_nudge_thread_id"):
+        return False
+    msg_id, reply_text = latest_reply_in_thread(
+        state["weekend_nudge_thread_id"],
+        expected_sender=os.getenv("EMAIL_TO", ""),
+        after_message_id=state.get("weekend_nudge_last_message_id", ""),
+    )
+    if not reply_text:
+        return False
+    pending = readiness.get("missing_approvals", [])
+    approved_now = parse_approval_targets(reply_text, pending)
+    if approved_now:
+        append_approval_log(approved_now, "Approved by email command.")
+        body = "Approved entries logged:\n" + "\n".join([f"- {p}" for p in approved_now])
+        sent_id, _ = send_email("Approval Logged", body, thread_id=state["weekend_nudge_thread_id"])
+        state["weekend_nudge_last_message_id"] = sent_id
+        return True
+    state["weekend_nudge_last_message_id"] = msg_id
+    return False
 
 
 def write_intake_answers(answers: str, week_start: date):
@@ -241,6 +326,112 @@ Posts 2 and 3 are short (<= {max_short} words).
 Each post must end with one open question and one warm, human closing line.
 
 Return ONLY valid JSON with this schema:
+{{
+  "post1": {{"title": "...", "body": "..."}},
+  "post2": {{"title": "...", "body": "..."}},
+  "post3": {{"title": "...", "body": "..."}}
+}}"""
+
+
+def build_storyboard_prompt(truth_file, intake_answers, week_start):
+    return f"""You are Iris, a LinkedIn PR agency. Build a weekly storyboard for LinkedIn.
+Use only the truth file and intake answers.
+
+Truth file:
+{truth_file}
+
+Interview answers:
+{intake_answers}
+
+Week of: {week_start}
+
+Return ONLY valid JSON:
+{{
+  "theme": "...",
+  "audience": "...",
+  "post1_angle": "...",
+  "post2_angle": "...",
+  "post3_angle": "...",
+  "proof_points": ["...", "..."],
+  "risks_to_avoid": ["...", "..."],
+  "cta_intent": "..."
+}}"""
+
+
+def build_storyboard_revision_prompt(storyboard, feedback):
+    return f"""Revise this weekly storyboard based on feedback.
+Return ONLY valid JSON with same schema.
+
+Current storyboard:
+{json.dumps(storyboard, indent=2)}
+
+Feedback:
+{feedback}
+"""
+
+
+def save_storyboard(week_start, storyboard):
+    path = DRAFTS_DIR / f"{week_start}_storyboard.md"
+    DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
+    content = [
+        f"# Storyboard - Week of {week_start}",
+        "",
+        f"Theme: {storyboard.get('theme', '')}",
+        f"Audience: {storyboard.get('audience', '')}",
+        "",
+        f"Post 1 angle: {storyboard.get('post1_angle', '')}",
+        f"Post 2 angle: {storyboard.get('post2_angle', '')}",
+        f"Post 3 angle: {storyboard.get('post3_angle', '')}",
+        "",
+        "Proof points:",
+    ]
+    content.extend([f"- {p}" for p in storyboard.get("proof_points", [])])
+    content.append("")
+    content.append("Risks to avoid:")
+    content.extend([f"- {r}" for r in storyboard.get("risks_to_avoid", [])])
+    content.append("")
+    content.append(f"CTA intent: {storyboard.get('cta_intent', '')}")
+    path.write_text("\n".join(content).strip() + "\n", encoding="utf-8")
+    return str(path.relative_to(ROOT)).replace("\\", "/")
+
+
+def build_storyboard_email_body(week_start, storyboard_path, storyboard):
+    return "\n".join(
+        [
+            f"Weekly Storyboard Draft",
+            f"Week of: {week_start}",
+            f"File: {storyboard_path}",
+            "",
+            json.dumps(storyboard, indent=2),
+            "",
+            "Reply with one of:",
+            "- APPROVE STORYBOARD",
+            "- REVISE STORYBOARD: <notes>",
+        ]
+    ).strip()
+
+
+def build_generation_prompt_with_storyboard(
+    truth_file, intake_answers, storyboard_text, week_start, max_long, max_short
+):
+    return f"""You are Iris, a LinkedIn PR agency. Use only approved inputs.
+Do not include confidential details, partner names, or unapproved metrics.
+
+Truth file:
+{truth_file}
+
+Interview answers:
+{intake_answers}
+
+Approved storyboard:
+{storyboard_text}
+
+Create a three-part series for week of {week_start}.
+Post 1 long <= {max_long} words.
+Post 2 and 3 short <= {max_short} words.
+Each post must end with one open question and one warm, human closing line.
+
+Return ONLY valid JSON:
 {{
   "post1": {{"title": "...", "body": "..."}},
   "post2": {{"title": "...", "body": "..."}},
@@ -360,6 +551,10 @@ def main():
     readiness = weekly_readiness((monday, wednesday, friday))
     if maybe_send_weekend_nudge(now, state, week_start, readiness):
         save_state(state)
+        return
+    if maybe_process_weekend_approval_reply(state, readiness):
+        save_state(state)
+        return
 
     # Step 1: Send interview on Friday if idle and next week still needs drafts.
     if now.weekday() == 4 and state["status"] in ["idle", "complete"]:
@@ -385,6 +580,9 @@ def main():
                 "revision_count": 0,
                 "last_feedback_message_id": "",
                 "draft_files": [],
+                "storyboard_thread_id": "",
+                "storyboard_message_id": "",
+                "storyboard_file": "",
             }
         )
         save_state(state)
@@ -405,9 +603,67 @@ def main():
             write_intake_answers(reply_text, target_monday)
             truth_file = read_file(TRUTH_FILE_PATH)
             intake_answers = read_file(INTAKE_ANSWERS_PATH)
-            prompt = build_generation_prompt(
-                truth_file, intake_answers, target_week_start,
-                config["max_word_count_long"], config["max_word_count_short"]
+            prompt = build_storyboard_prompt(truth_file, intake_answers, target_week_start)
+            raw = chat_complete("You are a helpful writing assistant.", prompt)
+            storyboard = parse_json_block(raw)
+            storyboard_file = save_storyboard(target_week_start, storyboard)
+            body = build_storyboard_email_body(target_week_start, storyboard_file, storyboard)
+            subject = f"Storyboard Draft - LinkedIn Series (Week of {target_week_start})"
+            storyboard_msg_id, storyboard_thread_id = send_email(subject, body)
+            state.update(
+                {
+                    "status": "waiting_for_storyboard_approval",
+                    "storyboard_thread_id": storyboard_thread_id,
+                    "storyboard_message_id": storyboard_msg_id,
+                    "storyboard_file": storyboard_file,
+                }
+            )
+            save_state(state)
+        return
+
+    if state["status"] == "waiting_for_storyboard_approval" and state["storyboard_thread_id"]:
+        target_week_start = state["week_start"] or week_start
+        target_monday = date.fromisoformat(target_week_start)
+        target_wednesday = target_monday + timedelta(days=2)
+        target_friday = target_monday + timedelta(days=4)
+        msg_id, reply_text = latest_reply_in_thread(
+            state["storyboard_thread_id"],
+            expected_sender=os.getenv("EMAIL_TO", ""),
+            after_message_id=state["storyboard_message_id"],
+        )
+        if not reply_text:
+            return
+        storyboard_text = read_file(ROOT / state["storyboard_file"])
+        truth_file = read_file(TRUTH_FILE_PATH)
+        intake_answers = read_file(INTAKE_ANSWERS_PATH)
+        if needs_revision(reply_text):
+            current = {"storyboard_markdown": storyboard_text}
+            raw = chat_complete(
+                "You are a helpful writing assistant.",
+                build_storyboard_revision_prompt(current, reply_text),
+            )
+            revised = parse_json_block(raw)
+            storyboard_file = save_storyboard(target_week_start, revised)
+            body = build_storyboard_email_body(target_week_start, storyboard_file, revised)
+            subject = f"Storyboard Draft v2 - LinkedIn Series (Week of {target_week_start})"
+            sent_id, thread_id = send_email(subject, body, thread_id=state["storyboard_thread_id"])
+            state.update(
+                {
+                    "storyboard_thread_id": thread_id,
+                    "storyboard_message_id": sent_id,
+                    "storyboard_file": storyboard_file,
+                }
+            )
+            save_state(state)
+            return
+        if is_approval(reply_text):
+            prompt = build_generation_prompt_with_storyboard(
+                truth_file,
+                intake_answers,
+                storyboard_text,
+                target_week_start,
+                config["max_word_count_long"],
+                config["max_word_count_short"],
             )
             raw = chat_complete("You are a helpful writing assistant.", prompt)
             posts = parse_json_block(raw)
