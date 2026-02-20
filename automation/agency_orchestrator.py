@@ -17,6 +17,22 @@ INTAKE_QUESTIONS_PATH = ROOT / "intake.md"
 INTAKE_ANSWERS_PATH = ROOT / "intake_answers.md"
 TRUTH_FILE_PATH = ROOT / "truth_file.md"
 DRAFTS_DIR = ROOT / "drafts"
+APPROVAL_LOG_PATH = ROOT / "approval_log.md"
+
+
+STATE_DEFAULTS = {
+    "status": "idle",
+    "week_start": "",
+    "interview_thread_id": "",
+    "interview_message_id": "",
+    "draft_thread_id": "",
+    "draft_message_id": "",
+    "revision_count": 0,
+    "last_feedback_message_id": "",
+    "draft_files": [],
+    "sent_post_dates": [],
+    "last_weekend_nudge_date": "",
+}
 
 
 def load_json(path: Path, default):
@@ -41,22 +57,20 @@ def load_config():
 
 
 def load_state():
-    default = {
-        "status": "idle",
-        "week_start": "",
-        "interview_thread_id": "",
-        "interview_message_id": "",
-        "draft_thread_id": "",
-        "draft_message_id": "",
-        "revision_count": 0,
-        "last_feedback_message_id": "",
-        "draft_files": [],
-    }
-    return load_json(STATE_PATH, default)
+    return load_json(STATE_PATH, STATE_DEFAULTS.copy())
 
 
 def save_state(state):
     save_json(STATE_PATH, state)
+
+
+def normalize_state(state):
+    changed = False
+    for key, value in STATE_DEFAULTS.items():
+        if key not in state:
+            state[key] = value
+            changed = True
+    return changed
 
 
 def slugify(text):
@@ -83,6 +97,116 @@ def read_file(path: Path):
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8").strip()
+
+
+def load_approved_draft_files():
+    text = read_file(APPROVAL_LOG_PATH)
+    approved = set()
+    for line in text.splitlines():
+        if not re.search(r"\|\s*Approved\s*\|", line, re.IGNORECASE):
+            continue
+        match = re.search(r"`(drafts/[^`]+\.md)`", line.replace("\\", "/"))
+        if match:
+            approved.add(match.group(1))
+    return approved
+
+
+def find_draft_file_for_date(post_date: date, kind: str):
+    pattern = f"{post_date.isoformat()}_{kind}_*.md"
+    matches = sorted(DRAFTS_DIR.glob(pattern))
+    if not matches:
+        return None
+    return matches[0]
+
+
+def weekly_readiness(week_dates_tuple):
+    approved = load_approved_draft_files()
+    readiness = {"missing_drafts": [], "missing_approvals": [], "files": []}
+    mapping = [
+        ("post1", week_dates_tuple[0], "long"),
+        ("post2", week_dates_tuple[1], "short"),
+        ("post3", week_dates_tuple[2], "short"),
+    ]
+    for label, post_date, kind in mapping:
+        path = find_draft_file_for_date(post_date, kind)
+        if not path:
+            readiness["missing_drafts"].append(f"{label} ({post_date.isoformat()}, {kind})")
+            continue
+        rel = str(path.relative_to(ROOT)).replace("\\", "/")
+        readiness["files"].append(rel)
+        if rel not in approved:
+            readiness["missing_approvals"].append(rel)
+    readiness["ready"] = not readiness["missing_drafts"] and not readiness["missing_approvals"]
+    return readiness
+
+
+def parse_title_and_body(markdown_text: str):
+    if markdown_text.startswith("# "):
+        lines = markdown_text.splitlines()
+        title = lines[0].replace("# ", "").strip()
+        body = "\n".join(lines[1:]).strip()
+        return title, body
+    return "LinkedIn Draft", markdown_text.strip()
+
+
+def maybe_send_today_post(now: datetime, state):
+    today_iso = now.date().isoformat()
+    if today_iso in state["sent_post_dates"]:
+        return False
+
+    today_matches = sorted(DRAFTS_DIR.glob(f"{today_iso}_*.md"))
+    if not today_matches:
+        return False
+
+    path = today_matches[0]
+    rel = str(path.relative_to(ROOT)).replace("\\", "/")
+    approved = load_approved_draft_files()
+    if rel not in approved:
+        return False
+
+    text = read_file(path)
+    title, body = parse_title_and_body(text)
+    subject = f"Post Today - LinkedIn ({today_iso})"
+    email_body = (
+        f"Today's approved LinkedIn post is ready to publish.\n\n"
+        f"File: {rel}\n"
+        f"Title: {title}\n\n"
+        f"{body}\n\n"
+        f"Action: Copy/paste into LinkedIn and post manually."
+    )
+    send_email(subject, email_body)
+    state["sent_post_dates"].append(today_iso)
+    return True
+
+
+def maybe_send_weekend_nudge(now: datetime, state, week_start, readiness):
+    if now.weekday() not in (4, 5, 6):
+        return False
+    if readiness["ready"]:
+        return False
+    today_iso = now.date().isoformat()
+    if state["last_weekend_nudge_date"] == today_iso:
+        return False
+
+    lines = [
+        f"Next-week content is not fully ready for week of {week_start}.",
+        "",
+    ]
+    if readiness["missing_drafts"]:
+        lines.append("Missing drafts:")
+        lines.extend([f"- {item}" for item in readiness["missing_drafts"]])
+        lines.append("")
+    if readiness["missing_approvals"]:
+        lines.append("Missing approvals:")
+        lines.extend([f"- {item}" for item in readiness["missing_approvals"]])
+        lines.append("")
+    lines.append("Goal: end weekend with all three posts drafted and approved.")
+    send_email(
+        f"Action Needed - Complete Next Week's LinkedIn Series ({week_start})",
+        "\n".join(lines).strip(),
+    )
+    state["last_weekend_nudge_date"] = today_iso
+    return True
 
 
 def write_intake_answers(answers: str, week_start: date):
@@ -226,9 +350,21 @@ def main():
     week_start = monday.isoformat()
 
     state = load_state()
+    state_changed = normalize_state(state)
+    if state_changed:
+        save_state(state)
 
-    # Step 1: Send interview on Friday if idle
+    if maybe_send_today_post(now, state):
+        save_state(state)
+
+    readiness = weekly_readiness((monday, wednesday, friday))
+    if maybe_send_weekend_nudge(now, state, week_start, readiness):
+        save_state(state)
+
+    # Step 1: Send interview on Friday if idle and next week still needs drafts.
     if now.weekday() == 4 and state["status"] in ["idle", "complete"]:
+        if not readiness["missing_drafts"]:
+            return
         questions = read_file(INTAKE_QUESTIONS_PATH)
         subject = f"Friday Interview - LinkedIn Series (Week of {week_start})"
         body = (
@@ -256,25 +392,29 @@ def main():
 
     # Step 2: Check for interview reply
     if state["status"] == "waiting_for_interview" and state["interview_thread_id"]:
+        target_week_start = state["week_start"] or week_start
+        target_monday = date.fromisoformat(target_week_start)
+        target_wednesday = target_monday + timedelta(days=2)
+        target_friday = target_monday + timedelta(days=4)
         msg_id, reply_text = latest_reply_in_thread(
             state["interview_thread_id"],
             expected_sender=os.getenv("EMAIL_TO", ""),
             after_message_id=state["interview_message_id"],
         )
         if reply_text:
-            write_intake_answers(reply_text, monday)
+            write_intake_answers(reply_text, target_monday)
             truth_file = read_file(TRUTH_FILE_PATH)
             intake_answers = read_file(INTAKE_ANSWERS_PATH)
             prompt = build_generation_prompt(
-                truth_file, intake_answers, week_start,
+                truth_file, intake_answers, target_week_start,
                 config["max_word_count_long"], config["max_word_count_short"]
             )
             raw = chat_complete("You are a helpful writing assistant.", prompt)
             posts = parse_json_block(raw)
             ensure_word_limits(posts, config["max_word_count_long"], config["max_word_count_short"])
-            files = save_drafts(posts, (monday, wednesday, friday))
-            body = build_draft_email_body(week_start, posts, files, "v1")
-            subject = f"Draft v1 - LinkedIn Series (Week of {week_start})"
+            files = save_drafts(posts, (target_monday, target_wednesday, target_friday))
+            body = build_draft_email_body(target_week_start, posts, files, "v1")
+            subject = f"Draft v1 - LinkedIn Series (Week of {target_week_start})"
             draft_msg_id, draft_thread_id = send_email(subject, body)
             state.update(
                 {
@@ -291,6 +431,10 @@ def main():
 
     # Step 3: Feedback loop
     if state["status"] == "waiting_for_feedback" and state["draft_thread_id"]:
+        target_week_start = state["week_start"] or week_start
+        target_monday = date.fromisoformat(target_week_start)
+        target_wednesday = target_monday + timedelta(days=2)
+        target_friday = target_monday + timedelta(days=4)
         msg_id, reply_text = latest_reply_in_thread(
             state["draft_thread_id"],
             expected_sender=os.getenv("EMAIL_TO", ""),
@@ -316,9 +460,9 @@ def main():
             raw = chat_complete("You are a helpful writing assistant.", prompt)
             revised = parse_json_block(raw)
             ensure_word_limits(revised, config["max_word_count_long"], config["max_word_count_short"])
-            files = save_drafts(revised, (monday, wednesday, friday))
-            body = build_draft_email_body(week_start, revised, files, "v2")
-            subject = f"Draft v2 - LinkedIn Series (Week of {week_start})"
+            files = save_drafts(revised, (target_monday, target_wednesday, target_friday))
+            body = build_draft_email_body(target_week_start, revised, files, "v2")
+            subject = f"Draft v2 - LinkedIn Series (Week of {target_week_start})"
             msg_sent, thread_id = send_email(subject, body, thread_id=state["draft_thread_id"])
             state.update(
                 {
@@ -334,6 +478,10 @@ def main():
             return
 
     if state["status"] == "final_sent" and state["draft_thread_id"]:
+        target_week_start = state["week_start"] or week_start
+        target_monday = date.fromisoformat(target_week_start)
+        target_wednesday = target_monday + timedelta(days=2)
+        target_friday = target_monday + timedelta(days=4)
         msg_id, reply_text = latest_reply_in_thread(
             state["draft_thread_id"],
             expected_sender=os.getenv("EMAIL_TO", ""),
@@ -359,9 +507,14 @@ def main():
             raw = chat_complete("You are a helpful writing assistant.", prompt)
             revised = parse_json_block(raw)
             ensure_word_limits(revised, config["max_word_count_long"], config["max_word_count_short"])
-            files = save_drafts(revised, (monday, wednesday, friday))
-            body = build_draft_email_body(week_start, revised, files, f"v{state['revision_count'] + 1}")
-            subject = f"Draft v{state['revision_count'] + 1} - LinkedIn Series (Week of {week_start})"
+            files = save_drafts(revised, (target_monday, target_wednesday, target_friday))
+            body = build_draft_email_body(
+                target_week_start, revised, files, f"v{state['revision_count'] + 1}"
+            )
+            subject = (
+                f"Draft v{state['revision_count'] + 1} - "
+                f"LinkedIn Series (Week of {target_week_start})"
+            )
             msg_sent, thread_id = send_email(subject, body, thread_id=state["draft_thread_id"])
             state.update(
                 {

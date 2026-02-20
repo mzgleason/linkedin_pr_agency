@@ -38,6 +38,12 @@ This script sends the Friday interview, waits for replies, drafts the series,
 requests one feedback round, and applies revisions.
 - `python agency_orchestrator.py`
 
+Autonomous behavior:
+- On Fri/Sat/Sun, sends an action-needed email if next week's three posts are
+  not fully drafted and approved.
+- On scheduled post dates, emails the approved post content for manual
+  copy/paste publishing.
+
 Required env vars:
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` (chat-completions compatible, or set `openai_model` in `config.json`)

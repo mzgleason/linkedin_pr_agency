@@ -7,5 +7,7 @@
   "draft_message_id": "",
   "revision_count": 0,
   "last_feedback_message_id": "",
-  "draft_files": []
+  "draft_files": [],
+  "sent_post_dates": [],
+  "last_weekend_nudge_date": ""
 }
