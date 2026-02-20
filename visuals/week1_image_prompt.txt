@@ -1,0 +1,3 @@
+Week 1 Image Prompt (Style 1)
+
+Create a clean, professional 16:9 LinkedIn image. Use the provided headshot of a male PM as the left-side portrait (about 40% width), sharply in focus with a soft neutral background. On the right side, place a minimalist workflow diagram titled "Agentic Posting Workflow" with five rounded boxes connected left-to-right: Intake → Drafts → QA → Approval → Publish. Use subtle gray lines, navy text, and a single teal accent. Keep whitespace generous, typography modern and clean, no icons. Overall look: editorial, credible, high-agency, not flashy.

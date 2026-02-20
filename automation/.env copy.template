@@ -1,0 +1,9 @@
+# Copy to .env and fill values (do not commit .env)
+
+# Gmail OAuth (Desktop app)
+GMAIL_USER=
+EMAIL_TO=
+
+# OAuth files (paths relative to this folder)
+GMAIL_OAUTH_CLIENT_SECRETS=client_secret.json
+GMAIL_OAUTH_TOKEN=token.json

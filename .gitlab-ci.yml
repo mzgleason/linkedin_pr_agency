@@ -1,0 +1,56 @@
+image: python:3.11
+
+stages:
+  - quality
+  - build
+  - orchestrate
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+quality:
+  stage: quality
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: always
+    - when: never
+  script:
+    - python -m pip install --upgrade pip
+    - python -m pip install -r automation/requirements.txt
+    - python -m compileall tests
+    - python -m unittest discover -s tests -p "test_*.py"
+    - python automation/verify_repo.py
+
+build:
+  stage: build
+  needs: ["quality"]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: always
+    - when: never
+  script:
+    - python -m pip install --upgrade pip
+    - python -m pip install -r automation/requirements.txt
+    - python -m compileall automation
+
+orchestrate:
+  stage: orchestrate
+  needs: ["build"]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - when: never
+  script:
+    - python -m pip install --upgrade pip
+    - python -m pip install -r automation/requirements.txt
+    - if [ -n "$GMAIL_OAUTH_TOKEN_JSON" ]; then echo "$GMAIL_OAUTH_TOKEN_JSON" > automation/token.json; fi
+    - python automation/agency_orchestrator.py
+    - python automation/commit_changes.py

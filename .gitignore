@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local env and secrets
+.env
+automation/.env
+automation/client_secret.json
+automation/token.json
+
+# Local OS/editor noise
+.DS_Store
+Thumbs.db
