@@ -52,6 +52,7 @@ orchestrate:
     - python -m pip install --upgrade pip
     - python -m pip install -r automation/requirements.txt
     - if [ -n "$GMAIL_OAUTH_TOKEN_JSON" ]; then printf "%s" "$GMAIL_OAUTH_TOKEN_JSON" > automation/token.json; fi
+    - export GMAIL_OAUTH_TOKEN=automation/token.json
     - python automation/preflight_credentials.py
     - python automation/run_orchestrator_with_report.py
     - python automation/commit_changes.py

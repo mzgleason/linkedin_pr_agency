@@ -1,6 +1,7 @@
 import os
 import base64
 from typing import Optional, Tuple
+from pathlib import Path
 
 from dotenv import load_dotenv
 from google.oauth2.credentials import Credentials
@@ -15,8 +16,12 @@ def load_env():
     user = os.getenv("GMAIL_USER", "").strip()
     email_to = os.getenv("EMAIL_TO", "").strip()
     token_path = os.getenv("GMAIL_OAUTH_TOKEN", "").strip()
+    if not token_path:
+        default_token = Path(__file__).resolve().parent / "token.json"
+        if default_token.exists():
+            token_path = str(default_token)
     if not user or not email_to or not token_path:
-        raise RuntimeError("Missing GMAIL_USER, EMAIL_TO, or GMAIL_OAUTH_TOKEN in .env")
+        raise RuntimeError("Missing GMAIL_USER, EMAIL_TO, or GMAIL_OAUTH_TOKEN.")
     return user, email_to, token_path
 
 
