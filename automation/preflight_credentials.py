@@ -3,6 +3,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from gmail_shared import SCOPES
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORT_PATH = ROOT / "automation" / "last_health_report.json"
@@ -42,6 +43,15 @@ def parse_expiry(value):
     return dt.astimezone(timezone.utc)
 
 
+def missing_required_scopes(token):
+    token_scopes = token.get("scopes") or []
+    if isinstance(token_scopes, str):
+        token_scopes = token_scopes.split()
+    have = set(s.strip() for s in token_scopes if s and isinstance(s, str))
+    required = set(SCOPES)
+    return sorted(required - have)
+
+
 def run_checks():
     results = []
     all_ok = True
@@ -78,6 +88,21 @@ def run_checks():
             "gmail_token.token_uri",
             has_token_uri,
             token.get("token_uri", "missing"),
+        )
+        missing_scopes = missing_required_scopes(token)
+        all_ok &= add_result(
+            results,
+            "gmail_token.scopes",
+            not missing_scopes,
+            (
+                "ok"
+                if not missing_scopes
+                else (
+                    "missing required scopes: "
+                    + ", ".join(missing_scopes)
+                    + ". Regenerate token with python automation/gmail_oauth_token.py"
+                )
+            ),
         )
         expiry = parse_expiry(token.get("expiry"))
         if expiry:
