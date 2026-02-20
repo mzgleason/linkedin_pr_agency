@@ -23,7 +23,7 @@ def main():
     try:
         agency_orchestrator.main()
         write_report(True, "")
-    except Exception:
+    except BaseException:
         write_report(False, traceback.format_exc())
         raise
 

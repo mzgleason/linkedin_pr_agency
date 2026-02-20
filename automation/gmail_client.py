@@ -47,7 +47,7 @@ def send_email(subject: str, body: str, thread_id: Optional[str] = None) -> Tupl
     try:
         sent = service.users().messages().send(userId="me", body=message).execute()
     except HttpError as err:
-        raise SystemExit(f"Gmail API error: {err}")
+        raise RuntimeError(f"Gmail API error: {err}") from err
     return sent.get("id", ""), sent.get("threadId", "")
 
 

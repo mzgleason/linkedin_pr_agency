@@ -1,4 +1,5 @@
 import os
+import argparse
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -20,6 +21,14 @@ def load_env():
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Generate Gmail OAuth token.")
+    parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Do not auto-open browser; print auth URL in terminal.",
+    )
+    args = parser.parse_args()
+
     _, client_secrets, token_path = load_env()
 
     secrets_path = Path(client_secrets)
@@ -29,7 +38,7 @@ def main():
     flow = InstalledAppFlow.from_client_secrets_file(
         str(secrets_path), scopes=SCOPES
     )
-    creds = flow.run_local_server(port=0)
+    creds = flow.run_local_server(port=0, open_browser=not args.no_browser)
 
     Path(token_path).write_text(creds.to_json(), encoding="utf-8")
     print({"token_saved_to": token_path})
