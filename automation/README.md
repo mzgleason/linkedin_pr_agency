@@ -44,6 +44,15 @@ Autonomous behavior:
 - On scheduled post dates, emails the approved post content for manual
   copy/paste publishing.
 
+## Observability
+- Scheduled pipelines run credential preflight before orchestration.
+- If required variables or token fields are missing/invalid, the job fails fast
+  with a clear error.
+- Pipeline artifacts always include:
+  - `automation/last_health_report.json`
+  - `automation/last_orchestrator_report.json`
+- Use these artifacts to diagnose expired or malformed OAuth tokens.
+
 Required env vars:
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` (chat-completions compatible, or set `openai_model` in `config.json`)

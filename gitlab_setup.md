@@ -37,3 +37,10 @@ Paste the resulting `automation/token.json` into `GMAIL_OAUTH_TOKEN_JSON`.
 - Protect `main`
 - Require merge requests for changes
 - Restrict pipeline schedules to Maintainers
+
+## 6) Failure Notifications
+- In GitLab, set notification level for this project to receive pipeline failure
+  alerts.
+- On any failed scheduled run, open the `orchestrate` job artifacts:
+  - `automation/last_health_report.json` (credential/token checks)
+  - `automation/last_orchestrator_report.json` (runtime exception details)
