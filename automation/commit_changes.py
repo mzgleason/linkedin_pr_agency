@@ -34,7 +34,12 @@ def main():
         raise SystemExit("Missing CI variables for git push.")
 
     remote = f"https://gitlab-ci-token:{token}@{server}/{project}.git"
-    run(["git", "push", remote, f"HEAD:{branch}"])
+    try:
+        run(["git", "push", remote, f"HEAD:{branch}"])
+    except subprocess.CalledProcessError as err:
+        # Some GitLab projects disallow CI_JOB_TOKEN push on protected branches.
+        # Do not fail orchestration when content generation itself succeeded.
+        print(f"warning: auto-push skipped ({err})")
 
 
 if __name__ == "__main__":
