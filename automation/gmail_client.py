@@ -82,3 +82,66 @@ def extract_subject_from_thread(thread_id: str):
         return ""
     headers = messages[0].get("payload", {}).get("headers", [])
     return extract_header(headers, "Subject")
+
+
+def latest_message_id_in_thread(thread_id: str, expected_sender: Optional[str] = None):
+    thread = fetch_thread(thread_id)
+    expected = (expected_sender or "").lower().strip()
+    for msg in reversed(thread.get("messages", [])):
+        headers = msg.get("payload", {}).get("headers", [])
+        sender = parse_sender(headers)
+        if expected and sender != expected:
+            continue
+        return msg.get("id", "")
+    return ""
+
+
+def find_latest_message_for_subject(subject: str, max_results: int = 10):
+    service = build_service()
+    query = f'subject:"{subject}"'
+    try:
+        resp = (
+            service.users()
+            .messages()
+            .list(
+                userId="me",
+                q=query,
+                maxResults=max_results,
+                includeSpamTrash=False,
+            )
+            .execute()
+        )
+    except HttpError as err:
+        raise RuntimeError(f"Gmail API error: {err}") from err
+
+    best = None
+    for item in resp.get("messages", []):
+        msg_id = item.get("id", "")
+        if not msg_id:
+            continue
+        meta = (
+            service.users()
+            .messages()
+            .get(
+                userId="me",
+                id=msg_id,
+                format="metadata",
+                metadataHeaders=["Subject", "From"],
+            )
+            .execute()
+        )
+        headers = meta.get("payload", {}).get("headers", [])
+        msg_subject = extract_header(headers, "Subject")
+        if subject not in msg_subject:
+            continue
+        internal_date = int(meta.get("internalDate", "0"))
+        candidate = {
+            "message_id": msg_id,
+            "thread_id": meta.get("threadId", ""),
+            "internal_date": internal_date,
+            "sender": parse_sender(headers),
+            "subject": msg_subject,
+        }
+        if not best or candidate["internal_date"] > best["internal_date"]:
+            best = candidate
+    return best

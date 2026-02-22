@@ -5,7 +5,12 @@ from datetime import datetime, timedelta, date
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from gmail_client import send_email, latest_reply_in_thread
+from gmail_client import (
+    send_email,
+    latest_reply_in_thread,
+    find_latest_message_for_subject,
+    latest_message_id_in_thread,
+)
 from openai_client import chat_complete
 
 
@@ -253,10 +258,16 @@ def parse_approval_targets(reply_text, pending_paths):
         for rel in pending_paths:
             if parse_iso_date_from_filename(rel) == wanted_date:
                 targets.add(rel)
+    if not targets and is_approval(reply_text) and not needs_revision(reply_text):
+        return list(pending_paths)
     return sorted(targets)
 
 
 def append_approval_log(approved_paths, notes):
+    if not approved_paths:
+        return
+    already_approved = load_approved_draft_files()
+    approved_paths = [path for path in approved_paths if path not in already_approved]
     if not approved_paths:
         return
     if not APPROVAL_LOG_PATH.exists():
@@ -272,13 +283,37 @@ def append_approval_log(approved_paths, notes):
         f.write("\n" + "\n".join(rows) + "\n")
 
 
+def parse_draft_version(subject: str):
+    match = re.search(r"Draft v(\d+)", subject or "", re.IGNORECASE)
+    if not match:
+        return 0
+    return max(0, int(match.group(1)))
+
+
+def find_week_draft_files(week_start: str):
+    monday = date.fromisoformat(week_start)
+    wednesday = monday + timedelta(days=2)
+    friday = monday + timedelta(days=4)
+    files = []
+    for post_date in (monday, wednesday, friday):
+        matches = sorted(DRAFTS_DIR.glob(f"{post_date.isoformat()}_*.md"))
+        if matches:
+            files.append(str(matches[0].relative_to(ROOT)).replace("\\", "/"))
+    return files
+
+
 def maybe_process_weekend_approval_reply(state, readiness):
     if not state.get("weekend_nudge_thread_id"):
         return False
+    after_message_id = state.get("weekend_nudge_last_message_id", "")
+    if not after_message_id:
+        after_message_id = latest_message_id_in_thread(
+            state["weekend_nudge_thread_id"], expected_sender=os.getenv("GMAIL_USER", "")
+        )
     msg_id, reply_text = latest_reply_in_thread(
         state["weekend_nudge_thread_id"],
         expected_sender=os.getenv("EMAIL_TO", ""),
-        after_message_id=state.get("weekend_nudge_last_message_id", ""),
+        after_message_id=after_message_id,
     )
     if not reply_text:
         return False
@@ -291,6 +326,73 @@ def maybe_process_weekend_approval_reply(state, readiness):
         state["weekend_nudge_last_message_id"] = sent_id
         return True
     state["weekend_nudge_last_message_id"] = msg_id
+    return False
+
+
+def maybe_recover_pipeline_state(state, week_start, config):
+    current_status = state.get("status", "idle")
+    if current_status not in ("idle", "complete"):
+        return False
+
+    week_marker = f"(Week of {week_start})"
+    gmail_user = os.getenv("GMAIL_USER", "")
+
+    draft_latest = find_latest_message_for_subject("Draft v")
+    if draft_latest and week_marker in draft_latest.get("subject", ""):
+        thread_id = draft_latest.get("thread_id", "")
+        if thread_id:
+            sent_id = latest_message_id_in_thread(thread_id, expected_sender=gmail_user)
+            version = parse_draft_version(draft_latest.get("subject", ""))
+            revision_count = max(0, version - 1)
+            recovered_status = (
+                "final_sent"
+                if revision_count >= config["require_feedback_rounds"]
+                else "waiting_for_feedback"
+            )
+            state.update(
+                {
+                    "status": recovered_status,
+                    "week_start": week_start,
+                    "draft_thread_id": thread_id,
+                    "draft_message_id": sent_id or draft_latest.get("message_id", ""),
+                    "last_feedback_message_id": sent_id or draft_latest.get("message_id", ""),
+                    "draft_files": find_week_draft_files(week_start),
+                    "revision_count": revision_count,
+                }
+            )
+            return True
+
+    storyboard_latest = find_latest_message_for_subject("Storyboard Draft")
+    if storyboard_latest and week_marker in storyboard_latest.get("subject", ""):
+        thread_id = storyboard_latest.get("thread_id", "")
+        if thread_id:
+            sent_id = latest_message_id_in_thread(thread_id, expected_sender=gmail_user)
+            state.update(
+                {
+                    "status": "waiting_for_storyboard_approval",
+                    "week_start": week_start,
+                    "storyboard_thread_id": thread_id,
+                    "storyboard_message_id": sent_id or storyboard_latest.get("message_id", ""),
+                    "storyboard_file": f"drafts/{week_start}_storyboard.md",
+                }
+            )
+            return True
+
+    interview_subject = f"Friday Interview - LinkedIn Series (Week of {week_start})"
+    interview_latest = find_latest_message_for_subject(interview_subject)
+    if interview_latest:
+        thread_id = interview_latest.get("thread_id", "")
+        if thread_id:
+            sent_id = latest_message_id_in_thread(thread_id, expected_sender=gmail_user)
+            state.update(
+                {
+                    "status": "waiting_for_interview",
+                    "week_start": week_start,
+                    "interview_thread_id": thread_id,
+                    "interview_message_id": sent_id or interview_latest.get("message_id", ""),
+                }
+            )
+            return True
     return False
 
 
@@ -548,7 +650,25 @@ def main():
     if maybe_send_today_post(now, state):
         save_state(state)
 
+    if maybe_recover_pipeline_state(state, week_start, config):
+        save_state(state)
+
     readiness = weekly_readiness((monday, wednesday, friday))
+    weekend_subject = f"Action Needed - Complete Next Week's LinkedIn Series ({week_start})"
+    if not state.get("weekend_nudge_thread_id"):
+        latest = find_latest_message_for_subject(weekend_subject)
+        if latest:
+            state["weekend_nudge_thread_id"] = latest["thread_id"]
+            state["weekend_nudge_last_message_id"] = latest_message_id_in_thread(
+                latest["thread_id"], expected_sender=os.getenv("GMAIL_USER", "")
+            )
+            message_day = datetime.fromtimestamp(
+                latest["internal_date"] / 1000, tz=now.tzinfo
+            ).date()
+            if message_day == now.date():
+                state["last_weekend_nudge_date"] = now.date().isoformat()
+            save_state(state)
+
     if maybe_send_weekend_nudge(now, state, week_start, readiness):
         save_state(state)
         return

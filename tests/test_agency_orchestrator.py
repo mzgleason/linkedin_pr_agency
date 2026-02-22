@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import shutil
 import sys
 import unittest
@@ -9,11 +10,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "automation"))
 import agency_orchestrator as ao  # noqa: E402
 
 from agency_orchestrator import (  # noqa: E402
+    append_approval_log,
     ensure_word_limits,
     is_approval,
     load_approved_draft_files,
     needs_revision,
     parse_approval_targets,
+    parse_draft_version,
     parse_json_block,
     slugify,
     weekly_readiness,
@@ -118,6 +121,82 @@ class AgencyOrchestratorTests(unittest.TestCase):
         self.assertEqual(approved, ["drafts/2026-02-25_short_workflow_improved.md"])
         approved_all = parse_approval_targets("approve all", pending)
         self.assertEqual(sorted(approved_all), sorted(pending))
+
+    def test_parse_approval_targets_accepts_plain_approval(self):
+        pending = [
+            "drafts/2026-02-25_short_workflow_improved.md",
+            "drafts/2026-02-27_short_unexpected_question.md",
+        ]
+        approved = parse_approval_targets("Looks good, final. Please proceed.", pending)
+        self.assertEqual(sorted(approved), sorted(pending))
+
+    def test_parse_approval_targets_does_not_override_revision(self):
+        pending = [
+            "drafts/2026-02-25_short_workflow_improved.md",
+            "drafts/2026-02-27_short_unexpected_question.md",
+        ]
+        approved = parse_approval_targets("Looks good overall, but revise post 2 intro.", pending)
+        self.assertEqual(approved, [])
+
+    def test_append_approval_log_skips_existing_rows(self):
+        root = self._make_tmp_root()
+        log_path = root / "approval_log.md"
+        log_path.write_text(
+            "# Approval Log\n\n| Date | Post | Status | Notes |\n|---|---|---|---|\n"
+            "| 2026-02-20 | `drafts/2026-02-23_long_x.md` | Approved | Existing |\n",
+            encoding="utf-8",
+        )
+        original = ao.APPROVAL_LOG_PATH
+        ao.APPROVAL_LOG_PATH = log_path
+        try:
+            append_approval_log(["drafts/2026-02-23_long_x.md"], "Duplicate")
+            text = log_path.read_text(encoding="utf-8")
+        finally:
+            ao.APPROVAL_LOG_PATH = original
+        self.assertEqual(text.count("drafts/2026-02-23_long_x.md"), 1)
+
+    def test_parse_draft_version(self):
+        self.assertEqual(parse_draft_version("Draft v3 - LinkedIn Series (Week of 2026-02-23)"), 3)
+        self.assertEqual(parse_draft_version("no version"), 0)
+
+    def test_maybe_recover_pipeline_state_from_draft_thread(self):
+        state = ao.STATE_DEFAULTS.copy()
+        state["status"] = "idle"
+        config = {"require_feedback_rounds": 1}
+        original_find = ao.find_latest_message_for_subject
+        original_latest = ao.latest_message_id_in_thread
+        original_files = ao.find_week_draft_files
+        original_user = os.environ.get("GMAIL_USER")
+        os.environ["GMAIL_USER"] = "agency@example.com"
+
+        def fake_find(subject):
+            if subject == "Draft v":
+                return {
+                    "message_id": "m1",
+                    "thread_id": "t1",
+                    "subject": "Draft v2 - LinkedIn Series (Week of 2026-02-23)",
+                }
+            return None
+
+        try:
+            ao.find_latest_message_for_subject = fake_find
+            ao.latest_message_id_in_thread = lambda thread_id, expected_sender=None: "sent-by-agency"
+            ao.find_week_draft_files = lambda week_start: ["drafts/2026-02-23_long_demo.md"]
+            changed = ao.maybe_recover_pipeline_state(state, "2026-02-23", config)
+        finally:
+            ao.find_latest_message_for_subject = original_find
+            ao.latest_message_id_in_thread = original_latest
+            ao.find_week_draft_files = original_files
+            if original_user is None:
+                os.environ.pop("GMAIL_USER", None)
+            else:
+                os.environ["GMAIL_USER"] = original_user
+
+        self.assertTrue(changed)
+        self.assertEqual(state["status"], "final_sent")
+        self.assertEqual(state["draft_thread_id"], "t1")
+        self.assertEqual(state["last_feedback_message_id"], "sent-by-agency")
+        self.assertEqual(state["revision_count"], 1)
 
 
 if __name__ == "__main__":
