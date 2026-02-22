@@ -262,8 +262,6 @@ def maybe_send_weekend_nudge(now: datetime, state, week_start, readiness):
     if readiness["ready"]:
         return False
     today_iso = now.date().isoformat()
-    if state["last_weekend_nudge_date"] == today_iso:
-        return False
 
     if state.get("weekend_nudge_week_start") != week_start:
         state["weekend_nudge_thread_id"] = ""

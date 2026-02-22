@@ -298,6 +298,33 @@ class AgencyOrchestratorTests(unittest.TestCase):
         self.assertEqual(state["weekend_nudge_thread_id"], "thread-new-week")
         self.assertEqual(state["weekend_nudge_week_start"], "2026-02-23")
 
+    def test_maybe_send_weekend_nudge_allows_repeat_same_day(self):
+        original_send = ao.send_email
+        calls = []
+        try:
+            def fake_send(subject, body, thread_id=None):
+                calls.append(thread_id)
+                return f"msg-{len(calls)}", "thread-existing"
+
+            ao.send_email = fake_send
+            state = ao.STATE_DEFAULTS.copy()
+            state.update(
+                {
+                    "weekend_nudge_week_start": "2026-02-23",
+                    "weekend_nudge_thread_id": "thread-existing",
+                    "last_weekend_nudge_date": "2026-02-22",
+                }
+            )
+            readiness = {"ready": False}
+            now = ao.datetime.fromisoformat("2026-02-22T12:00:00")
+            first = ao.maybe_send_weekend_nudge(now, state, "2026-02-23", readiness)
+            second = ao.maybe_send_weekend_nudge(now, state, "2026-02-23", readiness)
+        finally:
+            ao.send_email = original_send
+        self.assertTrue(first)
+        self.assertTrue(second)
+        self.assertEqual(calls, ["thread-existing", "thread-existing"])
+
 
 if __name__ == "__main__":
     unittest.main()
