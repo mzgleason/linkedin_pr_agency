@@ -37,6 +37,7 @@ STATE_DEFAULTS = {
     "draft_files": [],
     "sent_post_dates": [],
     "last_weekend_nudge_date": "",
+    "weekend_nudge_week_start": "",
     "weekend_nudge_thread_id": "",
     "weekend_nudge_last_message_id": "",
     "storyboard_thread_id": "",
@@ -264,17 +265,24 @@ def maybe_send_weekend_nudge(now: datetime, state, week_start, readiness):
     if state["last_weekend_nudge_date"] == today_iso:
         return False
 
+    if state.get("weekend_nudge_week_start") != week_start:
+        state["weekend_nudge_thread_id"] = ""
+        state["weekend_nudge_last_message_id"] = ""
+
     week_dates_tuple = (
         date.fromisoformat(week_start),
         date.fromisoformat(week_start) + timedelta(days=2),
         date.fromisoformat(week_start) + timedelta(days=4),
     )
     body = build_weekend_nudge_body(week_start, week_dates_tuple)
+    thread_id = state.get("weekend_nudge_thread_id", "")
     msg_id, thread_id = send_email(
         f"Action Needed - Complete Next Week's LinkedIn Series ({week_start})",
         body,
+        thread_id=thread_id or None,
     )
     state["last_weekend_nudge_date"] = today_iso
+    state["weekend_nudge_week_start"] = week_start
     state["weekend_nudge_thread_id"] = thread_id
     state["weekend_nudge_last_message_id"] = msg_id
     return True
@@ -402,6 +410,8 @@ def find_week_draft_files(week_start: str):
 
 
 def maybe_process_weekend_approval_reply(state, readiness, week_start, config):
+    if state.get("weekend_nudge_week_start") and state.get("weekend_nudge_week_start") != week_start:
+        return False
     if not state.get("weekend_nudge_thread_id"):
         return False
     after_message_id = state.get("weekend_nudge_last_message_id", "")
@@ -801,6 +811,7 @@ def main():
         latest = find_latest_message_for_subject(weekend_subject)
         if latest:
             state["weekend_nudge_thread_id"] = latest["thread_id"]
+            state["weekend_nudge_week_start"] = week_start
             state["weekend_nudge_last_message_id"] = latest_message_id_in_thread(
                 latest["thread_id"], expected_sender=os.getenv("GMAIL_USER", "")
             )

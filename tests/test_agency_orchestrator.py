@@ -245,6 +245,59 @@ class AgencyOrchestratorTests(unittest.TestCase):
         self.assertIn("Post 2 (Wed - Short) (2026-02-25) - Pending approval", body)
         self.assertIn("Post 3 (Fri - Short) (2026-02-27) - Not drafted", body)
 
+    def test_maybe_send_weekend_nudge_reuses_same_week_thread(self):
+        original_send = ao.send_email
+        sent = {}
+        try:
+            def fake_send(subject, body, thread_id=None):
+                sent["thread_id"] = thread_id
+                return "msg-new", thread_id or "thread-existing"
+
+            ao.send_email = fake_send
+            state = ao.STATE_DEFAULTS.copy()
+            state.update(
+                {
+                    "weekend_nudge_week_start": "2026-02-23",
+                    "weekend_nudge_thread_id": "thread-existing",
+                    "last_weekend_nudge_date": "",
+                }
+            )
+            readiness = {"ready": False}
+            now = ao.datetime.fromisoformat("2026-02-22T12:00:00")
+            changed = ao.maybe_send_weekend_nudge(now, state, "2026-02-23", readiness)
+        finally:
+            ao.send_email = original_send
+        self.assertTrue(changed)
+        self.assertEqual(sent["thread_id"], "thread-existing")
+        self.assertEqual(state["weekend_nudge_thread_id"], "thread-existing")
+
+    def test_maybe_send_weekend_nudge_starts_new_thread_for_new_week(self):
+        original_send = ao.send_email
+        sent = {}
+        try:
+            def fake_send(subject, body, thread_id=None):
+                sent["thread_id"] = thread_id
+                return "msg-new", "thread-new-week"
+
+            ao.send_email = fake_send
+            state = ao.STATE_DEFAULTS.copy()
+            state.update(
+                {
+                    "weekend_nudge_week_start": "2026-02-16",
+                    "weekend_nudge_thread_id": "thread-old-week",
+                    "last_weekend_nudge_date": "",
+                }
+            )
+            readiness = {"ready": False}
+            now = ao.datetime.fromisoformat("2026-02-22T12:00:00")
+            changed = ao.maybe_send_weekend_nudge(now, state, "2026-02-23", readiness)
+        finally:
+            ao.send_email = original_send
+        self.assertTrue(changed)
+        self.assertIsNone(sent["thread_id"])
+        self.assertEqual(state["weekend_nudge_thread_id"], "thread-new-week")
+        self.assertEqual(state["weekend_nudge_week_start"], "2026-02-23")
+
 
 if __name__ == "__main__":
     unittest.main()
