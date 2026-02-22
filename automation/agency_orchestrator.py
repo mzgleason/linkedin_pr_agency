@@ -155,6 +155,67 @@ def weekly_readiness(week_dates_tuple):
     return readiness
 
 
+def week_slots(week_dates_tuple):
+    mapping = [
+        ("post1", "Post 1 (Mon - Long)", week_dates_tuple[0], "long"),
+        ("post2", "Post 2 (Wed - Short)", week_dates_tuple[1], "short"),
+        ("post3", "Post 3 (Fri - Short)", week_dates_tuple[2], "short"),
+    ]
+    slots = []
+    for key, label, post_date, kind in mapping:
+        path = find_draft_file_for_date(post_date, kind)
+        rel = str(path.relative_to(ROOT)).replace("\\", "/") if path else ""
+        slots.append(
+            {
+                "key": key,
+                "label": label,
+                "date": post_date.isoformat(),
+                "kind": kind,
+                "path": rel,
+            }
+        )
+    return slots
+
+
+def build_weekend_nudge_body(week_start, week_dates_tuple):
+    approved = load_approved_draft_files()
+    slots = week_slots(week_dates_tuple)
+    lines = [f"Next-week content approval packet for week of {week_start}.", ""]
+    for slot in slots:
+        if not slot["path"]:
+            status = "Not drafted"
+        elif slot["path"] in approved:
+            status = "Approved"
+        else:
+            status = "Pending approval"
+        lines.extend(
+            [
+                f"{slot['label']} ({slot['date']}) - {status}",
+                f"File: {slot['path'] or '(not drafted yet)'}",
+            ]
+        )
+        if slot["path"]:
+            text = read_file(ROOT / slot["path"])
+            title, body = parse_title_and_body(text)
+            lines.extend([f"Title: {title}", body if body else "(empty draft body)"])
+        else:
+            lines.append("Content: Not drafted yet.")
+        lines.extend(["", "---", ""])
+
+    lines.extend(
+        [
+            "Reply options:",
+            "- APPROVE ALL",
+            "- APPROVE YYYY-MM-DD (example: APPROVE 2026-02-25)",
+            "- REVISE POST 1|2|3: <notes> (or: edit the second post ...)",
+            "- REVISE YYYY-MM-DD: <notes>",
+            "",
+            "If all three posts are approved, these approval emails stop for that week.",
+        ]
+    )
+    return "\n".join(lines).strip()
+
+
 def parse_title_and_body(markdown_text: str):
     if markdown_text.startswith("# "):
         lines = markdown_text.splitlines()
@@ -203,41 +264,15 @@ def maybe_send_weekend_nudge(now: datetime, state, week_start, readiness):
     if state["last_weekend_nudge_date"] == today_iso:
         return False
 
-    lines = [f"Next-week content is not fully ready for week of {week_start}.", ""]
-    if readiness["missing_drafts"]:
-        lines.append("Missing drafts:")
-        lines.extend([f"- {item}" for item in readiness["missing_drafts"]])
-        lines.append("")
-    if readiness["missing_approvals"]:
-        lines.append("Missing approvals:")
-        lines.extend([f"- {item}" for item in readiness["missing_approvals"]])
-        lines.append("")
-        lines.append("Drafts awaiting approval:")
-        lines.append("")
-        for rel in readiness["missing_approvals"]:
-            text = read_file(ROOT / rel)
-            title, body = parse_title_and_body(text)
-            lines.extend(
-                [
-                    f"--- {rel} ---",
-                    f"Title: {title}",
-                    body,
-                    "",
-                ]
-            )
-    lines.extend(
-        [
-            "Reply options:",
-            "- APPROVE ALL",
-            "- APPROVE YYYY-MM-DD (example: APPROVE 2026-02-25)",
-            "- REVISE YYYY-MM-DD: <notes>",
-            "",
-            "Goal: end weekend with all three posts drafted and approved.",
-        ]
+    week_dates_tuple = (
+        date.fromisoformat(week_start),
+        date.fromisoformat(week_start) + timedelta(days=2),
+        date.fromisoformat(week_start) + timedelta(days=4),
     )
+    body = build_weekend_nudge_body(week_start, week_dates_tuple)
     msg_id, thread_id = send_email(
         f"Action Needed - Complete Next Week's LinkedIn Series ({week_start})",
-        "\n".join(lines).strip(),
+        body,
     )
     state["last_weekend_nudge_date"] = today_iso
     state["weekend_nudge_thread_id"] = thread_id
@@ -261,6 +296,70 @@ def parse_approval_targets(reply_text, pending_paths):
     if not targets and is_approval(reply_text) and not needs_revision(reply_text):
         return list(pending_paths)
     return sorted(targets)
+
+
+def parse_revision_targets(reply_text, pending_paths, week_dates_tuple):
+    if not pending_paths:
+        return []
+    lowered = reply_text.lower()
+    targets = set()
+    post_dates = {
+        "post1": week_dates_tuple[0].isoformat(),
+        "post2": week_dates_tuple[1].isoformat(),
+        "post3": week_dates_tuple[2].isoformat(),
+    }
+    hints = {
+        "post1": ["post 1", "post1", "first post", "first", "monday", post_dates["post1"]],
+        "post2": ["post 2", "post2", "second post", "second", "wednesday", post_dates["post2"]],
+        "post3": ["post 3", "post3", "third post", "third", "friday", post_dates["post3"]],
+    }
+    for key, words in hints.items():
+        if any(word in lowered for word in words):
+            wanted_date = post_dates[key]
+            for rel in pending_paths:
+                if parse_iso_date_from_filename(rel) == wanted_date:
+                    targets.add(rel)
+    if not targets:
+        return list(pending_paths)
+    return sorted(targets)
+
+
+def draft_key_for_path(path: str, week_dates_tuple):
+    normalized = path.replace("\\", "/")
+    if "_long_" in normalized:
+        return "post1"
+    post_date = parse_iso_date_from_filename(normalized)
+    if post_date == week_dates_tuple[1].isoformat():
+        return "post2"
+    if post_date == week_dates_tuple[2].isoformat():
+        return "post3"
+    if "post2" not in normalized:
+        return "post2"
+    return "post3"
+
+
+def build_targeted_revision_prompt(
+    truth_file,
+    intake_answers,
+    feedback,
+    posts,
+    target_keys,
+    max_long,
+    max_short,
+):
+    return (
+        build_revision_prompt(
+            truth_file,
+            intake_answers,
+            feedback,
+            posts,
+            max_long,
+            max_short,
+        )
+        + "\n\nOnly revise these posts: "
+        + ", ".join(sorted(target_keys))
+        + ". Keep non-targeted posts unchanged."
+    )
 
 
 def append_approval_log(approved_paths, notes):
@@ -302,7 +401,7 @@ def find_week_draft_files(week_start: str):
     return files
 
 
-def maybe_process_weekend_approval_reply(state, readiness):
+def maybe_process_weekend_approval_reply(state, readiness, week_start, config):
     if not state.get("weekend_nudge_thread_id"):
         return False
     after_message_id = state.get("weekend_nudge_last_message_id", "")
@@ -317,7 +416,50 @@ def maybe_process_weekend_approval_reply(state, readiness):
     )
     if not reply_text:
         return False
+    target_monday = date.fromisoformat(week_start)
+    week_dates_tuple = (
+        target_monday,
+        target_monday + timedelta(days=2),
+        target_monday + timedelta(days=4),
+    )
     pending = readiness.get("missing_approvals", [])
+    if needs_revision(reply_text):
+        if len(readiness.get("files", [])) < 3:
+            state["weekend_nudge_last_message_id"] = msg_id
+            return False
+        revision_targets = parse_revision_targets(reply_text, pending, week_dates_tuple)
+        target_keys = {draft_key_for_path(path, week_dates_tuple) for path in revision_targets}
+        if not target_keys:
+            state["weekend_nudge_last_message_id"] = msg_id
+            return False
+        posts = load_posts_from_files(readiness["files"])
+        truth_file = read_file(TRUTH_FILE_PATH)
+        intake_answers = read_file(INTAKE_ANSWERS_PATH)
+        prompt = build_targeted_revision_prompt(
+            truth_file,
+            intake_answers,
+            reply_text,
+            posts,
+            target_keys,
+            config["max_word_count_long"],
+            config["max_word_count_short"],
+        )
+        raw = chat_complete("You are a helpful writing assistant.", prompt)
+        revised = parse_json_block(raw)
+        for key in ("post1", "post2", "post3"):
+            if key not in target_keys:
+                revised[key] = posts[key]
+        ensure_word_limits(revised, config["max_word_count_long"], config["max_word_count_short"])
+        save_drafts(revised, week_dates_tuple)
+        body = build_weekend_nudge_body(week_start, week_dates_tuple)
+        sent_id, _ = send_email(
+            f"Action Needed - Complete Next Week's LinkedIn Series ({week_start})",
+            body,
+            thread_id=state["weekend_nudge_thread_id"],
+        )
+        state["weekend_nudge_last_message_id"] = sent_id
+        return True
+
     approved_now = parse_approval_targets(reply_text, pending)
     if approved_now:
         append_approval_log(approved_now, "Approved by email command.")
@@ -672,7 +814,7 @@ def main():
     if maybe_send_weekend_nudge(now, state, week_start, readiness):
         save_state(state)
         return
-    if maybe_process_weekend_approval_reply(state, readiness):
+    if maybe_process_weekend_approval_reply(state, readiness, week_start, config):
         save_state(state)
         return
 

@@ -11,12 +11,14 @@ import agency_orchestrator as ao  # noqa: E402
 
 from agency_orchestrator import (  # noqa: E402
     append_approval_log,
+    build_weekend_nudge_body,
     ensure_word_limits,
     is_approval,
     load_approved_draft_files,
     needs_revision,
     parse_approval_targets,
     parse_draft_version,
+    parse_revision_targets,
     parse_json_block,
     slugify,
     weekly_readiness,
@@ -197,6 +199,51 @@ class AgencyOrchestratorTests(unittest.TestCase):
         self.assertEqual(state["draft_thread_id"], "t1")
         self.assertEqual(state["last_feedback_message_id"], "sent-by-agency")
         self.assertEqual(state["revision_count"], 1)
+
+    def test_parse_revision_targets_understands_second_post(self):
+        pending = [
+            "drafts/2026-02-25_short_workflow_improved.md",
+            "drafts/2026-02-27_short_unexpected_question.md",
+        ]
+        week = (
+            ao.date.fromisoformat("2026-02-23"),
+            ao.date.fromisoformat("2026-02-25"),
+            ao.date.fromisoformat("2026-02-27"),
+        )
+        targets = parse_revision_targets("edit the second post, I want to see one concrete example", pending, week)
+        self.assertEqual(targets, ["drafts/2026-02-25_short_workflow_improved.md"])
+
+    def test_build_weekend_nudge_body_always_lists_three_posts(self):
+        root = self._make_tmp_root()
+        drafts = root / "drafts"
+        drafts.mkdir(parents=True, exist_ok=True)
+        (drafts / "2026-02-23_long_post.md").write_text("# A\n\nBody A", encoding="utf-8")
+        (drafts / "2026-02-25_short_post.md").write_text("# B\n\nBody B", encoding="utf-8")
+        (root / "approval_log.md").write_text(
+            "# Approval Log\n\n| Date | Post | Status | Notes |\n|---|---|---|---|\n"
+            "| 2026-02-20 | `drafts/2026-02-23_long_post.md` | Approved | ok |\n",
+            encoding="utf-8",
+        )
+        original_root = ao.ROOT
+        original_drafts = ao.DRAFTS_DIR
+        original_log = ao.APPROVAL_LOG_PATH
+        ao.ROOT = root
+        ao.DRAFTS_DIR = drafts
+        ao.APPROVAL_LOG_PATH = root / "approval_log.md"
+        try:
+            week = (
+                ao.date.fromisoformat("2026-02-23"),
+                ao.date.fromisoformat("2026-02-25"),
+                ao.date.fromisoformat("2026-02-27"),
+            )
+            body = build_weekend_nudge_body("2026-02-23", week)
+        finally:
+            ao.ROOT = original_root
+            ao.DRAFTS_DIR = original_drafts
+            ao.APPROVAL_LOG_PATH = original_log
+        self.assertIn("Post 1 (Mon - Long) (2026-02-23) - Approved", body)
+        self.assertIn("Post 2 (Wed - Short) (2026-02-25) - Pending approval", body)
+        self.assertIn("Post 3 (Fri - Short) (2026-02-27) - Not drafted", body)
 
 
 if __name__ == "__main__":
