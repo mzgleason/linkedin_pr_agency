@@ -1,18 +1,18 @@
 {
-  "status": "waiting_for_storyboard_approval",
+  "status": "waiting_for_feedback",
   "week_start": "2026-02-23",
   "draft_files": [
-    "drafts/2026-02-23_long_building_ai_agents_in_public_start_tiny_test_ruthlessly_expe.md",
-    "drafts/2026-02-25_short_a_tiny_checklist_to_make_an_agent_dependable.md",
-    "drafts/2026-02-27_short_tradeoffs_day_job_vs_side_experiments_how_i_prioritize.md"
+    "drafts/2026-02-23_long_building_tiny_ai_assistants_what_i_ve_learned_by_starting_ve.md",
+    "drafts/2026-02-25_short_quick_status_telegram_assistant_and_the_linkedin_pr_agent.md",
+    "drafts/2026-02-27_short_tradeoffs_day_job_vs_side_projects_and_why_the_last_20_matte.md"
   ],
   "sent_post_dates": [],
-  "revision_count": 1,
+  "revision_count": 0,
   "interview_thread_id": "",
   "interview_message_id": "",
-  "draft_thread_id": "",
-  "draft_message_id": "",
-  "last_feedback_message_id": "",
+  "draft_thread_id": "19c88e794cb4f5e0",
+  "draft_message_id": "19c88e794cb4f5e0",
+  "last_feedback_message_id": "19c88e794cb4f5e0",
   "archived_weeks": [],
   "last_weekend_nudge_date": "2026-02-22",
   "weekend_nudge_week_start": "2026-02-23",
@@ -21,5 +21,5 @@
   "storyboard_thread_id": "19c8805d1ad9e4ee",
   "storyboard_message_id": "19c8805d1ad9e4ee",
   "storyboard_file": "drafts/2026-02-23_storyboard.md",
-  "master_thread_id": ""
+  "master_thread_id": "19c88e794cb4f5e0"
 }
