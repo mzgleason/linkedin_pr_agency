@@ -1,5 +1,5 @@
 {
-  "status": "complete",
+  "status": "waiting_for_storyboard_approval",
   "week_start": "2026-02-23",
   "draft_files": [
     "drafts/2026-02-23_long_building_ai_agents_in_public_start_tiny_test_ruthlessly_expe.md",
@@ -7,5 +7,19 @@
     "drafts/2026-02-27_short_tradeoffs_day_job_vs_side_experiments_how_i_prioritize.md"
   ],
   "sent_post_dates": [],
-  "revision_count": 1
+  "revision_count": 1,
+  "interview_thread_id": "",
+  "interview_message_id": "",
+  "draft_thread_id": "",
+  "draft_message_id": "",
+  "last_feedback_message_id": "",
+  "archived_weeks": [],
+  "last_weekend_nudge_date": "2026-02-22",
+  "weekend_nudge_week_start": "2026-02-23",
+  "weekend_nudge_thread_id": "19c85afd65455b4c",
+  "weekend_nudge_last_message_id": "19c8842541993422",
+  "storyboard_thread_id": "19c8805d1ad9e4ee",
+  "storyboard_message_id": "19c8805d1ad9e4ee",
+  "storyboard_file": "drafts/2026-02-23_storyboard.md",
+  "master_thread_id": ""
 }
