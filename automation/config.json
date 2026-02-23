@@ -2,10 +2,12 @@
   "mode": "approval_gated",
   "posting_method": "manual_only",
   "timezone": "America/New_York",
-  "default_post_time": "09:00",
+  "default_post_time": "08:00",
   "require_explicit_approval": true,
   "max_word_count_long": 450,
   "max_word_count_short": 200,
+  "feedback_trigger": "non_approval_revises",
+  "sender_policy": "any",
   "openai_model": "",
   "require_feedback_rounds": 1,
   "max_additional_revisions": 2

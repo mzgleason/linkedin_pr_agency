@@ -9,7 +9,6 @@ REQUIRED_FILES = [
     "truth_file.md",
     "content_calendar.md",
     "checklist.md",
-    "approval_log.md",
     "intake.md",
     ".gitlab-ci.yml",
 ]

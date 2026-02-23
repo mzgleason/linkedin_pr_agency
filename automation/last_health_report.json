@@ -1,0 +1,51 @@
+{
+  "timestamp_utc": "2026-02-23T00:50:43.050177+00:00",
+  "ok": true,
+  "results": [
+    {
+      "check": "OPENAI_API_KEY",
+      "ok": true,
+      "detail": "present"
+    },
+    {
+      "check": "OPENAI_MODEL",
+      "ok": true,
+      "detail": "present"
+    },
+    {
+      "check": "GMAIL_USER",
+      "ok": true,
+      "detail": "present"
+    },
+    {
+      "check": "EMAIL_TO",
+      "ok": true,
+      "detail": "present"
+    },
+    {
+      "check": "gmail_token.refresh_token",
+      "ok": true,
+      "detail": "present"
+    },
+    {
+      "check": "gmail_token.client_credentials",
+      "ok": true,
+      "detail": "present"
+    },
+    {
+      "check": "gmail_token.token_uri",
+      "ok": true,
+      "detail": "https://oauth2.googleapis.com/token"
+    },
+    {
+      "check": "gmail_token.scopes",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "check": "gmail_token.expiry",
+      "ok": true,
+      "detail": "expired at 2026-02-20T18:43:35+00:00 but refresh_token exists"
+    }
+  ]
+}

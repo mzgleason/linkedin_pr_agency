@@ -21,7 +21,7 @@ Purpose: Quick restart context to continue the LinkedIn PR workflow with Nano Ba
 ## Key Files
 - Main draft: `linkedin_pr_agency/drafts/2026-02-23_long_learning_in_public.md`
 - All drafts: `linkedin_pr_agency/drafts/`
-- Approval log: `linkedin_pr_agency/approval_log.md`
+- Weekly memory: `linkedin_pr_agency/automation/weekly_memory.json`
 - Publish queue: `linkedin_pr_agency/publish_queue.md`
 - Calendar: `linkedin_pr_agency/content_calendar.md`
 - Truth file: `linkedin_pr_agency/truth_file.md`

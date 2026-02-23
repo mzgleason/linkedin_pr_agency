@@ -30,19 +30,24 @@ def chat_complete(system_prompt, user_prompt, temperature=0.4):
     api_key, model = load_openai()
     payload = {
         "model": model,
-        "temperature": temperature,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
     }
+    if temperature is not None:
+        payload["temperature"] = temperature
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
     resp = requests.post(OPENAI_API_URL, json=payload, headers=headers, timeout=60)
     if resp.status_code >= 400:
-        raise RuntimeError(f"OpenAI API error {resp.status_code}: {resp.text}")
+        if resp.status_code == 400 and "temperature" in resp.text and "unsupported" in resp.text:
+            payload.pop("temperature", None)
+            resp = requests.post(OPENAI_API_URL, json=payload, headers=headers, timeout=60)
+        if resp.status_code >= 400:
+            raise RuntimeError(f"OpenAI API error {resp.status_code}: {resp.text}")
     data = resp.json()
     choices = data.get("choices", [])
     if not choices:

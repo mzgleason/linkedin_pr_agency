@@ -9,5 +9,5 @@ Inputs:
 
 Output:
 - Approval checklist results
-- Updated `approval_log.md` entry (drafted, not yet approved)
+- Updated weekly memory entry (topic/project/learning)
 - Publish queue entry after explicit approval only

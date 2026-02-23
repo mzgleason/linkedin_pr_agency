@@ -56,16 +56,19 @@ def fetch_thread(thread_id: str):
     return service.users().threads().get(userId="me", id=thread_id, format="full").execute()
 
 
-def latest_reply_in_thread(thread_id: str, expected_sender: str, after_message_id: Optional[str] = None):
+def latest_reply_in_thread(
+    thread_id: str, expected_sender: Optional[str], after_message_id: Optional[str] = None
+):
     thread = fetch_thread(thread_id)
     messages = thread.get("messages", [])
+    expected = (expected_sender or "").lower().strip()
     for msg in reversed(messages):
         msg_id = msg.get("id", "")
         if after_message_id and msg_id == after_message_id:
             break
         headers = msg.get("payload", {}).get("headers", [])
         sender = parse_sender(headers)
-        if sender and sender != expected_sender.lower().strip():
+        if expected and sender and sender != expected:
             continue
         payload = msg.get("payload", {})
         text = extract_plain_text(payload)
@@ -98,7 +101,7 @@ def latest_message_id_in_thread(thread_id: str, expected_sender: Optional[str] =
 
 def find_latest_message_for_subject(subject: str, max_results: int = 10):
     service = build_service()
-    query = f'subject:"{subject}"'
+    query = f'in:anywhere subject:"{subject}"'
     try:
         resp = (
             service.users()

@@ -10,11 +10,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "automation"))
 import agency_orchestrator as ao  # noqa: E402
 
 from agency_orchestrator import (  # noqa: E402
-    append_approval_log,
+    append_week_memory,
     build_weekend_nudge_body,
+    classify_reply_action,
     ensure_word_limits,
+    format_memory_context,
     is_approval,
-    load_approved_draft_files,
+    maybe_archive_and_prune_completed_weeks,
+    maybe_send_today_post,
     needs_revision,
     parse_approval_targets,
     parse_draft_version,
@@ -63,42 +66,26 @@ class AgencyOrchestratorTests(unittest.TestCase):
         self.assertTrue(needs_revision("Please revise this opening."))
         self.assertTrue(is_approval("Looks good, final."))
 
-    def test_load_approved_draft_files_parses_markdown_table(self):
-        root = self._make_tmp_root()
-        log_path = root / "approval_log.md"
-        log_path.write_text(
-            "| Date | Post | Status |\n"
-            "|---|---|---|\n"
-            "| 2026-02-20 | `drafts/2026-02-23_long_x.md` | Approved |\n",
-            encoding="utf-8",
-        )
-        original = ao.APPROVAL_LOG_PATH
-        ao.APPROVAL_LOG_PATH = log_path
-        try:
-            approved = load_approved_draft_files()
-        finally:
-            ao.APPROVAL_LOG_PATH = original
-        self.assertIn("drafts/2026-02-23_long_x.md", approved)
+    def test_classify_reply_action_non_approval(self):
+        config = {"feedback_trigger": "non_approval_revises"}
+        self.assertEqual(classify_reply_action("Please tighten this.", config), "revise")
+        self.assertEqual(classify_reply_action("Looks good, final.", config), "approve")
 
-    def test_weekly_readiness_detects_missing_approvals(self):
+    def test_classify_reply_action_keyword_only(self):
+        config = {"feedback_trigger": "keyword_revise_only"}
+        self.assertEqual(classify_reply_action("Please revise the opener.", config), "revise")
+        self.assertEqual(classify_reply_action("Thanks for sending.", config), "none")
+
+    def test_weekly_readiness_detects_missing_drafts(self):
         root = self._make_tmp_root()
         drafts = root / "drafts"
         drafts.mkdir(parents=True, exist_ok=True)
         (drafts / "2026-02-23_long_post.md").write_text("# A\n\nBody", encoding="utf-8")
         (drafts / "2026-02-25_short_post.md").write_text("# B\n\nBody", encoding="utf-8")
-        (drafts / "2026-02-27_short_post.md").write_text("# C\n\nBody", encoding="utf-8")
-        (root / "approval_log.md").write_text(
-            "| Date | Post | Status |\n"
-            "|---|---|---|\n"
-            "| 2026-02-20 | `drafts/2026-02-23_long_post.md` | Approved |\n",
-            encoding="utf-8",
-        )
         original_root = ao.ROOT
         original_drafts = ao.DRAFTS_DIR
-        original_log = ao.APPROVAL_LOG_PATH
         ao.ROOT = root
         ao.DRAFTS_DIR = drafts
-        ao.APPROVAL_LOG_PATH = root / "approval_log.md"
         try:
             readiness = weekly_readiness(
                 (
@@ -110,9 +97,7 @@ class AgencyOrchestratorTests(unittest.TestCase):
         finally:
             ao.ROOT = original_root
             ao.DRAFTS_DIR = original_drafts
-            ao.APPROVAL_LOG_PATH = original_log
         self.assertFalse(readiness["ready"])
-        self.assertEqual(len(readiness["missing_approvals"]), 2)
 
     def test_parse_approval_targets(self):
         pending = [
@@ -139,23 +124,6 @@ class AgencyOrchestratorTests(unittest.TestCase):
         ]
         approved = parse_approval_targets("Looks good overall, but revise post 2 intro.", pending)
         self.assertEqual(approved, [])
-
-    def test_append_approval_log_skips_existing_rows(self):
-        root = self._make_tmp_root()
-        log_path = root / "approval_log.md"
-        log_path.write_text(
-            "# Approval Log\n\n| Date | Post | Status | Notes |\n|---|---|---|---|\n"
-            "| 2026-02-20 | `drafts/2026-02-23_long_x.md` | Approved | Existing |\n",
-            encoding="utf-8",
-        )
-        original = ao.APPROVAL_LOG_PATH
-        ao.APPROVAL_LOG_PATH = log_path
-        try:
-            append_approval_log(["drafts/2026-02-23_long_x.md"], "Duplicate")
-            text = log_path.read_text(encoding="utf-8")
-        finally:
-            ao.APPROVAL_LOG_PATH = original
-        self.assertEqual(text.count("drafts/2026-02-23_long_x.md"), 1)
 
     def test_parse_draft_version(self):
         self.assertEqual(parse_draft_version("Draft v3 - LinkedIn Series (Week of 2026-02-23)"), 3)
@@ -200,6 +168,32 @@ class AgencyOrchestratorTests(unittest.TestCase):
         self.assertEqual(state["last_feedback_message_id"], "sent-by-agency")
         self.assertEqual(state["revision_count"], 1)
 
+    def test_maybe_send_today_post_respects_default_time(self):
+        root = self._make_tmp_root()
+        drafts = root / "drafts"
+        drafts.mkdir(parents=True, exist_ok=True)
+        draft_path = drafts / "2026-02-23_long_post.md"
+        draft_path.write_text("# Title\n\nBody", encoding="utf-8")
+        original_root = ao.ROOT
+        original_drafts = ao.DRAFTS_DIR
+        original_send = ao.send_email
+        sent = {"count": 0}
+        ao.ROOT = root
+        ao.DRAFTS_DIR = drafts
+        ao.send_email = lambda *args, **kwargs: sent.update({"count": sent["count"] + 1})
+        try:
+            state = {"sent_post_dates": [], "status": "complete"}
+            config = {"default_post_time": "09:00"}
+            early = ao.datetime.fromisoformat("2026-02-23T08:00:00")
+            self.assertFalse(maybe_send_today_post(early, state, config))
+            later = ao.datetime.fromisoformat("2026-02-23T09:01:00")
+            self.assertTrue(maybe_send_today_post(later, state, config))
+            self.assertEqual(sent["count"], 1)
+        finally:
+            ao.ROOT = original_root
+            ao.DRAFTS_DIR = original_drafts
+            ao.send_email = original_send
+
     def test_parse_revision_targets_understands_second_post(self):
         pending = [
             "drafts/2026-02-25_short_workflow_improved.md",
@@ -219,17 +213,10 @@ class AgencyOrchestratorTests(unittest.TestCase):
         drafts.mkdir(parents=True, exist_ok=True)
         (drafts / "2026-02-23_long_post.md").write_text("# A\n\nBody A", encoding="utf-8")
         (drafts / "2026-02-25_short_post.md").write_text("# B\n\nBody B", encoding="utf-8")
-        (root / "approval_log.md").write_text(
-            "# Approval Log\n\n| Date | Post | Status | Notes |\n|---|---|---|---|\n"
-            "| 2026-02-20 | `drafts/2026-02-23_long_post.md` | Approved | ok |\n",
-            encoding="utf-8",
-        )
         original_root = ao.ROOT
         original_drafts = ao.DRAFTS_DIR
-        original_log = ao.APPROVAL_LOG_PATH
         ao.ROOT = root
         ao.DRAFTS_DIR = drafts
-        ao.APPROVAL_LOG_PATH = root / "approval_log.md"
         try:
             week = (
                 ao.date.fromisoformat("2026-02-23"),
@@ -240,9 +227,8 @@ class AgencyOrchestratorTests(unittest.TestCase):
         finally:
             ao.ROOT = original_root
             ao.DRAFTS_DIR = original_drafts
-            ao.APPROVAL_LOG_PATH = original_log
-        self.assertIn("Post 1 (Mon - Long) (2026-02-23) - Approved", body)
-        self.assertIn("Post 2 (Wed - Short) (2026-02-25) - Pending approval", body)
+        self.assertIn("Post 1 (Mon - Long) (2026-02-23) - Drafted", body)
+        self.assertIn("Post 2 (Wed - Short) (2026-02-25) - Drafted", body)
         self.assertIn("Post 3 (Fri - Short) (2026-02-27) - Not drafted", body)
 
     def test_maybe_send_weekend_nudge_reuses_same_week_thread(self):
@@ -324,6 +310,81 @@ class AgencyOrchestratorTests(unittest.TestCase):
         self.assertTrue(first)
         self.assertTrue(second)
         self.assertEqual(calls, ["thread-existing", "thread-existing"])
+
+    def test_append_week_memory_and_format_context(self):
+        root = self._make_tmp_root()
+        drafts = root / "drafts"
+        drafts.mkdir(parents=True, exist_ok=True)
+        (drafts / "2026-02-23_storyboard.md").write_text(
+            "# Storyboard - Week of 2026-02-23\n\nTheme: Practical automation lessons\n",
+            encoding="utf-8",
+        )
+        (drafts / "2026-02-23_long_post.md").write_text(
+            "# Building trust in automation\n\nWe built a safer review loop. We learned to keep approvals explicit.",
+            encoding="utf-8",
+        )
+        (drafts / "2026-02-25_short_post.md").write_text(
+            "# Shipping cadence\n\nWe shipped a daily cadence change and discovered email timing matters.",
+            encoding="utf-8",
+        )
+        (drafts / "2026-02-27_short_post.md").write_text(
+            "# What changed this week\n\nKey lesson learned: keep one thread per week.",
+            encoding="utf-8",
+        )
+
+        original_root = ao.ROOT
+        original_drafts = ao.DRAFTS_DIR
+        original_memory = ao.WEEKLY_MEMORY_PATH
+        ao.ROOT = root
+        ao.DRAFTS_DIR = drafts
+        ao.WEEKLY_MEMORY_PATH = root / "automation" / "weekly_memory.json"
+        ao.WEEKLY_MEMORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            append_week_memory("2026-02-23")
+            context = format_memory_context()
+        finally:
+            ao.ROOT = original_root
+            ao.DRAFTS_DIR = original_drafts
+            ao.WEEKLY_MEMORY_PATH = original_memory
+
+        self.assertIn("Week 2026-02-23", context)
+        self.assertIn("topic", context)
+        self.assertIn("project", context)
+        self.assertIn("learning", context)
+
+    def test_archive_and_prune_completed_week(self):
+        root = self._make_tmp_root()
+        drafts = root / "drafts"
+        drafts.mkdir(parents=True, exist_ok=True)
+        p1 = drafts / "2026-02-23_long_post.md"
+        p2 = drafts / "2026-02-25_short_post.md"
+        p3 = drafts / "2026-02-27_short_post.md"
+        sb = drafts / "2026-02-23_storyboard.md"
+        for path in (p1, p2, p3, sb):
+            path.write_text("# T\n\nBody", encoding="utf-8")
+
+        original_root = ao.ROOT
+        original_drafts = ao.DRAFTS_DIR
+        original_memory = ao.WEEKLY_MEMORY_PATH
+        ao.ROOT = root
+        ao.DRAFTS_DIR = drafts
+        ao.WEEKLY_MEMORY_PATH = root / "automation" / "weekly_memory.json"
+        ao.WEEKLY_MEMORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+        state = ao.STATE_DEFAULTS.copy()
+        state["sent_post_dates"] = ["2026-02-23", "2026-02-25", "2026-02-27"]
+        try:
+            changed = maybe_archive_and_prune_completed_weeks(state)
+        finally:
+            ao.ROOT = original_root
+            ao.DRAFTS_DIR = original_drafts
+            ao.WEEKLY_MEMORY_PATH = original_memory
+
+        self.assertTrue(changed)
+        self.assertIn("2026-02-23", state["archived_weeks"])
+        self.assertFalse(p1.exists())
+        self.assertFalse(p2.exists())
+        self.assertFalse(p3.exists())
+        self.assertFalse(sb.exists())
 
 
 if __name__ == "__main__":

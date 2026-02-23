@@ -16,5 +16,5 @@
 - Closing line feels human and specific to the post (avoid canned CTA phrases like "Follow + Discuss.").
 
 ## Approval
-- Mark approved in `approval_log.md`.
+- Record approval via email reply and proceed to reminders.
 - Explicit publish confirmation required before posting.

@@ -12,7 +12,7 @@ It can optionally email drafts or a weekly interview to you for review.
 - `agency_orchestrator.py` - end-to-end interview + drafting loop
 
 ## Publish a Draft
-1. Ensure the draft is approved and logged.
+1. Ensure the draft is approved.
 2. Manually copy/paste into LinkedIn and post.
 
 ## Email a Draft (OAuth)
@@ -38,13 +38,25 @@ This script sends the Friday interview, waits for replies, drafts the series,
 requests one feedback round, and applies revisions.
 - `python agency_orchestrator.py`
 
+## Local Stage Runner (Mocks)
+Run individual stages with deterministic mocks:
+- `python stage_runner.py all --use-mocks`
+- `python stage_runner.py interview --use-mocks`
+- `python stage_runner.py storyboard --use-mocks`
+- `python stage_runner.py drafts --use-mocks`
+- `python stage_runner.py feedback --use-mocks`
+- `python stage_runner.py approvals --use-mocks`
+- `python stage_runner.py reminders --use-mocks`
+- `python stage_runner.py archive --use-mocks`
+- `python stage_runner.py all --use-mocks --cleanup`
+
 Autonomous behavior:
-- On Fri/Sat/Sun, sends an action-needed email with full unapproved draft text
-  if next week's three posts are not fully drafted and approved.
+- On Fri/Sat/Sun, sends an action-needed email with full draft text
+  if next week's three posts are not fully drafted or approved.
 - On scheduled post dates, emails the approved post content for manual
   copy/paste publishing.
-- New weekly gate: interview -> storyboard draft -> storyboard approval ->
-  post drafting.
+- After all three reminders are sent, drafts are cleaned up and a weekly
+  memory entry is recorded.
 
 ## Observability
 - Scheduled pipelines run credential preflight before orchestration.

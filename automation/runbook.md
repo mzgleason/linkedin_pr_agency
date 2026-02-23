@@ -17,10 +17,24 @@ Optional: schedule the Friday email:
 ## 2.5) Automation Orchestrator
 `agency_orchestrator.py` can run steps 1-3 automatically when scheduled.
 
+## 2.6) Local Stage Runner (Mocks)
+Use the local CLI to run any stage with deterministic mocks:
+`python stage_runner.py all --use-mocks`
+`python stage_runner.py interview --use-mocks`
+`python stage_runner.py storyboard --use-mocks`
+`python stage_runner.py drafts --use-mocks`
+`python stage_runner.py feedback --use-mocks`
+`python stage_runner.py approvals --use-mocks`
+`python stage_runner.py reminders --use-mocks`
+`python stage_runner.py archive --use-mocks`
+
 ## 3) Approval Gate
-- Log approval in `../approval_log.md`
 - Move approved posts into `../publish_queue.md`
 
 ## 4) Publish (approval required)
 Publishing is manual-only. If you want a review step, email the draft first:
 `python email_draft_oauth.py --file ..\\drafts\\<file>.md --confirm SEND`
+
+## 5) Cleanup + Memory
+After Mon/Wed/Fri reminders are sent, drafts are pruned and a weekly
+memory entry (topic/project/learning) is recorded in `automation/weekly_memory.json`.

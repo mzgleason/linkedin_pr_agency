@@ -3,7 +3,7 @@
 Purpose: Run the workflow, approvals, and publishing.
 
 Responsibilities:
-- Keep `approval_log.md` current.
+- Keep weekly memory entry current after reminders.
 - Move approved drafts into `publish_queue.md`.
 - Confirm posting time window.
 - Maintain the weekly intake cadence.
