@@ -1,5 +1,5 @@
 {
-  "status": "waiting_for_feedback",
+  "status": "complete",
   "week_start": "2026-02-23",
   "draft_files": [
     "drafts/2026-02-23_long_building_tiny_ai_assistants_what_i_ve_learned_by_starting_ve.md",
@@ -14,12 +14,12 @@
   "draft_message_id": "19c88e794cb4f5e0",
   "last_feedback_message_id": "19c88e794cb4f5e0",
   "archived_weeks": [],
-  "last_weekend_nudge_date": "2026-02-22",
-  "weekend_nudge_week_start": "2026-02-23",
-  "weekend_nudge_thread_id": "19c85afd65455b4c",
-  "weekend_nudge_last_message_id": "19c88b02c324427e",
-  "storyboard_thread_id": "19c8805d1ad9e4ee",
-  "storyboard_message_id": "19c8805d1ad9e4ee",
-  "storyboard_file": "drafts/2026-02-23_storyboard.md",
+  "last_weekend_nudge_date": "",
+  "weekend_nudge_week_start": "",
+  "weekend_nudge_thread_id": "",
+  "weekend_nudge_last_message_id": "",
+  "storyboard_thread_id": "",
+  "storyboard_message_id": "",
+  "storyboard_file": "",
   "master_thread_id": "19c88e794cb4f5e0"
 }
