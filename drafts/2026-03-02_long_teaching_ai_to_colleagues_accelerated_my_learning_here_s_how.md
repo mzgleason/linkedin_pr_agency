@@ -1,24 +1,20 @@
-# Teaching Others AI Made Me Better at Using It
+# Teaching Others AI Forced Me to Tighten My Own Workflow
 
-Last week I did an onsite where I demoed Codex to product and creative teams at LendingTree.
+Last week I spent time onsite demoing Codex with product and creative teams at LendingTree.
 
-I expected people to ask "how do I use this?" Instead, they asked better questions:
-- Where does this break?
-- What should we not trust yet?
-- How do we hand this off cleanly?
+At the same time, I started building reusable skills I can share with colleagues so they can get useful results faster.
 
-Those questions made me tighten my own approach fast.
+The biggest thing I noticed: AI makes it much easier to start and move multiple projects, but context switching becomes the real bottleneck very quickly.
 
-I also started building reusable skills for teammates so they are not starting from a blank page. That work made one thing obvious: AI lets you move faster across many projects, but context switching becomes the new bottleneck.
+I felt that across everything I touched this week:
+- supporting AI adoption during the onsite
+- refining an app that helps communication between executives and engineers
+- fixing my PR workflow after it failed in week one
 
-I felt that directly this week. I was refining an app to improve communication between executives and engineers, while also fixing my own PR workflow after it failed in week one. It sent two of three posts before a Friday reset. Not fun, but useful. The failure showed me exactly where state and sequencing were weak.
+That PR workflow sent two of three posts before a Friday reset. It was frustrating, but it gave me a clear list of what to fix in state handling and sequencing.
 
-For me, this is the pattern:
-- Ship small.
-- Watch the workflow in production.
-- Fix the brittle parts.
-- Teach what worked.
+My takeaway is simple: small automations still need production discipline. The faster AI helps you build, the more important it is to keep scope tight, test the handoffs, and improve one weak point at a time.
 
-Teaching forces clarity. Clarity improves the system.
+Helping others learn the tooling also helped me sharpen my own thinking and priorities.
 
-What is one thing you could teach your team this week that would also sharpen your own AI workflow?
+Where has AI sped you up lately, and where has context switching slowed you down?
