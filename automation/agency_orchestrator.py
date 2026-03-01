@@ -652,7 +652,8 @@ Memory from previous weeks (avoid reusing same angles/claims):
 Create a three-part series for the week of {week_start}.
 Post 1 is long form (<= {max_long} words).
 Posts 2 and 3 are short (<= {max_short} words).
-Each post must end with one open question and one warm, human closing line.
+Each post must end with exactly one open question.
+Do not add any sign-off line (for example: "Thanks", "Warmly", or a name).
 
 Return ONLY valid JSON with this schema:
 {{
@@ -766,7 +767,8 @@ Memory from previous weeks (avoid reusing same angles/claims):
 Create a three-part series for week of {week_start}.
 Post 1 long <= {max_long} words.
 Post 2 and 3 short <= {max_short} words.
-Each post must end with one open question and one warm, human closing line.
+Each post must end with exactly one open question.
+Do not add any sign-off line (for example: "Thanks", "Warmly", or a name).
 
 Return ONLY valid JSON:
 {{
@@ -798,7 +800,8 @@ Current posts:
 {json.dumps(posts, indent=2)}
 
 Word limits: post1 <= {max_long} words, post2/post3 <= {max_short} words.
-Each post must end with one open question and one warm, human closing line.
+Each post must end with exactly one open question.
+Do not add any sign-off line (for example: "Thanks", "Warmly", or a name).
 
 Return ONLY valid JSON with this schema:
 {{
