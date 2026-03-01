@@ -1,10 +1,10 @@
 {
-  "status": "waiting_for_interview",
+  "status": "complete",
   "week_start": "2026-03-02",
   "draft_files": [
-    "drafts/2026-02-23_long_building_tiny_ai_assistants_what_i_ve_learned_by_starting_ve.md",
-    "drafts/2026-02-25_short_quick_status_telegram_assistant_and_the_linkedin_pr_agent.md",
-    "drafts/2026-02-27_short_tradeoffs_day_job_vs_side_projects_and_why_the_last_20_matte.md"
+    "drafts\\2026-03-02_long_learning_in_public_small_bets_reliable_agents_and_the_last_2.md",
+    "drafts\\2026-03-04_short_why_the_first_version_should_be_embarrassingly_small.md",
+    "drafts\\2026-03-06_short_balancing_day_job_priorities_and_side_projects_with_ai_agent.md"
   ],
   "sent_post_dates": [
     "2026-02-23",
