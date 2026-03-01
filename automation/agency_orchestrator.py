@@ -328,12 +328,25 @@ def maybe_send_today_post(now: datetime, state, config):
     return True
 
 
+def has_unsent_post_for_date(post_date_iso: str, state):
+    if post_date_iso in state.get("sent_post_dates", []):
+        return False
+    return bool(sorted(DRAFTS_DIR.glob(f"{post_date_iso}_*.md")))
+
+
 def maybe_send_weekend_nudge(now: datetime, state, week_start, readiness):
     if now.weekday() not in (4, 5, 6):
         return False
     if readiness["ready"] and state.get("status") == "complete":
         return False
     today_iso = now.date().isoformat()
+    if now.weekday() == 4 and has_unsent_post_for_date(today_iso, state):
+        return False
+    if (
+        state.get("weekend_nudge_week_start") == week_start
+        and state.get("last_weekend_nudge_date") == today_iso
+    ):
+        return False
 
     if state.get("weekend_nudge_week_start") != week_start:
         state["weekend_nudge_thread_id"] = ""
@@ -588,7 +601,7 @@ def maybe_recover_pipeline_state(state, week_start, config):
             )
             return True
 
-    interview_subject = f"LinkedIn Series - Week of {week_start}"
+    interview_subject = f"LinkedIn Interview - Week of {week_start}"
     interview_latest = find_latest_message_for_subject(interview_subject)
     if interview_latest:
         thread_id = interview_latest.get("thread_id", "")
@@ -1043,10 +1056,12 @@ def run_once(now: datetime):
 
     # Step 1: Send interview on Friday if idle and next week still needs drafts.
     if now.weekday() == 4 and state["status"] in ["idle", "complete"]:
+        if has_unsent_post_for_date(now.date().isoformat(), state):
+            return
         if not readiness["missing_drafts"]:
             return
         questions = read_file(INTAKE_QUESTIONS_PATH)
-        subject = f"LinkedIn Series - Week of {week_start}"
+        subject = f"LinkedIn Interview - Week of {week_start}"
         body = (
             build_stage_header("Interview", "Reply with answers to the interview questions below.")
             + "Quick interview to create next week's three-part LinkedIn series.\n"

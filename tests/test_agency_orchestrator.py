@@ -284,7 +284,7 @@ class AgencyOrchestratorTests(unittest.TestCase):
         self.assertEqual(state["weekend_nudge_thread_id"], "thread-new-week")
         self.assertEqual(state["weekend_nudge_week_start"], "2026-02-23")
 
-    def test_maybe_send_weekend_nudge_allows_repeat_same_day(self):
+    def test_maybe_send_weekend_nudge_sends_once_per_day(self):
         original_send = ao.send_email
         calls = []
         try:
@@ -298,7 +298,7 @@ class AgencyOrchestratorTests(unittest.TestCase):
                 {
                     "weekend_nudge_week_start": "2026-02-23",
                     "weekend_nudge_thread_id": "thread-existing",
-                    "last_weekend_nudge_date": "2026-02-22",
+                    "last_weekend_nudge_date": "2026-02-21",
                 }
             )
             readiness = {"ready": False}
@@ -308,8 +308,46 @@ class AgencyOrchestratorTests(unittest.TestCase):
         finally:
             ao.send_email = original_send
         self.assertTrue(first)
-        self.assertTrue(second)
-        self.assertEqual(calls, ["thread-existing", "thread-existing"])
+        self.assertFalse(second)
+        self.assertEqual(calls, ["thread-existing"])
+
+    def test_maybe_send_weekend_nudge_skips_friday_until_post_sent(self):
+        root = self._make_tmp_root()
+        drafts = root / "drafts"
+        drafts.mkdir(parents=True, exist_ok=True)
+        (drafts / "2026-02-27_short_post.md").write_text("# Fri\n\nBody", encoding="utf-8")
+        original_root = ao.ROOT
+        original_drafts = ao.DRAFTS_DIR
+        original_send = ao.send_email
+        called = {"count": 0}
+        try:
+            ao.ROOT = root
+            ao.DRAFTS_DIR = drafts
+
+            def fake_send(subject, body, thread_id=None):
+                called["count"] += 1
+                return "msg-new", "thread-existing"
+
+            ao.send_email = fake_send
+            state = ao.STATE_DEFAULTS.copy()
+            state.update(
+                {
+                    "sent_post_dates": ["2026-02-23", "2026-02-25"],
+                    "weekend_nudge_week_start": "2026-03-02",
+                    "weekend_nudge_thread_id": "thread-existing",
+                    "last_weekend_nudge_date": "",
+                }
+            )
+            readiness = {"ready": False}
+            now = ao.datetime.fromisoformat("2026-02-27T07:00:00")
+            changed = ao.maybe_send_weekend_nudge(now, state, "2026-03-02", readiness)
+        finally:
+            ao.ROOT = original_root
+            ao.DRAFTS_DIR = original_drafts
+            ao.send_email = original_send
+
+        self.assertFalse(changed)
+        self.assertEqual(called["count"], 0)
 
     def test_append_week_memory_and_format_context(self):
         root = self._make_tmp_root()
