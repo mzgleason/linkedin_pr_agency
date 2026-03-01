@@ -1,9 +1,24 @@
-# Teaching AI to Colleagues Accelerated My Learning — Here’s How I Run That Experiment
+# Teaching Others AI Made Me Better at Using It
 
-This week I ran an onsite to demo Codex for LendingTree’s product and creative teams and started packaging the skills I’ll share as colleagues begin using it. My hypothesis: helping others learn a new tool forces you to clarify tradeoffs, surface edge cases, and build repeatable workflows faster than solo experimentation. The demo confirmed that — teammates asked impossible-to-ignore questions that exposed assumptions I hadn’t noticed.
+Last week I did an onsite where I demoed Codex to product and creative teams at LendingTree.
 
-Practically, that feedback loop exposed where AI can remove friction (better context, standardized prompts) and where human coordination still matters (handoff points between strategy and implementation). I also used the week to refine an application that improves communication between executives and engineers on work projects, and to iterate on a small PR workflow that publishes posts on a cadence. That workflow failed in week one — two of three posts went out before an automatic reset — but the failure was its own learning: it revealed brittle edges in orchestration and the need for clearer state management.
+I expected people to ask "how do I use this?" Instead, they asked better questions:
+- Where does this break?
+- What should we not trust yet?
+- How do we hand this off cleanly?
 
-We’ve seen meaningful, measurable results from complementary work at the company level — from increased customer engagement by 40% through improved digital experience, to $500K+ in incremental value from data science and forms integration, and even large operational wins like saving approximately $9M in annualized losses by resolving a security routing flaw. Those outcomes remind me to be pragmatic about where AI can nudge big wins and where we need traditional engineering rigor.
+Those questions made me tighten my own approach fast.
 
-Next week I’ll be focused on making the Codex sessions easier to pick up and hand off and exploring multi-agent patterns where several sessions coordinate on specific tasks. My working thesis: teaching publicly and iterating in small, recoverable steps will scale both capability and confidence faster than locked-down pilots. What small, public experiment could you run this week to accelerate learning with AI?
+I also started building reusable skills for teammates so they are not starting from a blank page. That work made one thing obvious: AI lets you move faster across many projects, but context switching becomes the new bottleneck.
+
+I felt that directly this week. I was refining an app to improve communication between executives and engineers, while also fixing my own PR workflow after it failed in week one. It sent two of three posts before a Friday reset. Not fun, but useful. The failure showed me exactly where state and sequencing were weak.
+
+For me, this is the pattern:
+- Ship small.
+- Watch the workflow in production.
+- Fix the brittle parts.
+- Teach what worked.
+
+Teaching forces clarity. Clarity improves the system.
+
+What is one thing you could teach your team this week that would also sharpen your own AI workflow?

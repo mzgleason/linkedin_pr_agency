@@ -1,3 +1,9 @@
-# When a New Workflow Breaks, Treat It Like Data
+# When a Workflow Breaks, Treat It Like Data
 
-My first week shipping a PR workflow at LendingTree broke on day five — two of three posts sent before a Friday reset. It was frustrating, but it was also precise feedback: the orchestration assumptions weren’t explicitly captured. Instead of sweeping fixes, I treated the break as data, added simple observability, and hardened the state transitions. The result is a more resilient process and clearer handoffs between automation and human review. What one small metric would you instrument this week to make a brittle workflow observable?
+My PR workflow broke in its first real week. It sent two of three posts before a Friday reset.
+
+It was annoying, but it was useful. The failure showed me exactly where my sequencing and state handling were weak. Instead of patching randomly, I tightened observability and fixed the transition logic.
+
+That one break gave me a better system than a smooth week would have.
+
+What is one brittle workflow you could improve this week by instrumenting it first?
