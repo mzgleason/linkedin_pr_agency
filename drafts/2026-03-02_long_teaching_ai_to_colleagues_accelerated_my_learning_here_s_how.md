@@ -1,20 +1,22 @@
-# Teaching Others AI Forced Me to Tighten My Own Workflow
+# Teaching Others AI Made Me Better at Using It
 
-Last week I spent time onsite demoing Codex with product and creative teams at LendingTree.
+Last week I was onsite demoing Codex with product and creative teams at LendingTree.
 
-At the same time, I started building reusable skills I can share with colleagues so they can get useful results faster.
+I was also building reusable skills for coworkers so they can get to a useful result faster.
 
-The biggest thing I noticed: AI makes it much easier to start and move multiple projects, but context switching becomes the real bottleneck very quickly.
+The part I did not expect was how much this would improve my own process. Explaining things clearly to other people forces you to clean up your own thinking.
 
-I felt that across everything I touched this week:
-- supporting AI adoption during the onsite
-- refining an app that helps communication between executives and engineers
+The biggest lesson from the week: AI makes it easier to start a lot of projects, but context switching becomes the real bottleneck fast.
+
+I felt that in real time while juggling three things:
+- helping teams get started with Codex
+- refining an app that improves communication between executives and engineers
 - fixing my PR workflow after it failed in week one
 
-That PR workflow sent two of three posts before a Friday reset. It was frustrating, but it gave me a clear list of what to fix in state handling and sequencing.
+That workflow sent two of three posts before a Friday reset. It was frustrating, but also useful. It showed me exactly where my state handling and sequencing were weak.
 
-My takeaway is simple: small automations still need production discipline. The faster AI helps you build, the more important it is to keep scope tight, test the handoffs, and improve one weak point at a time.
+So my rule right now is simple: keep the scope small, test handoffs, and fix one weak point at a time.
 
-Helping others learn the tooling also helped me sharpen my own thinking and priorities.
+Helping other people learn the tooling is helping me learn faster too.
 
-Where has AI sped you up lately, and where has context switching slowed you down?
+Where has AI sped you up recently, and where is context switching still slowing you down?
