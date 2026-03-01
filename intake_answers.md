@@ -1,22 +1,33 @@
 # Weekly Interview Answers
 
-Week of: 2026-02-23
+Week of: 2026-03-02
 
 1. What AI projects did you work on this week?
-I worked on connected telegram with a personal assistant on my laptop so that I could have it do things like create a ticket that I forgot to when im on a walk or dont want to do it. I started a project for a directory on dance studios. I have an automated 'linkedin pr agency' that sends me an interview script at lunch on friday asking about my week, then turns it into a storyboard and draft posts for the next week.
-2. What changed, shipped, or moved forward?
-The telegram assistant is seeming reliable, probably needs a few more iterations. The linkedin pr agency is close. The directory still needs more work on data scraping.
-3. What did you try that did not work, and what did you learn?
-I learned it is easy to get distracted by many projects now that agents help you push them forward when you are not paying attention. But the last 20% takes the longest.
-4. What result surprised you (good or bad)?
-I am surprised at how small you should start with creating an automation. You really need to nail down the task at hand and have a good test for it so that as you build on the agents know it still works as expected.
-5. What tradeoff or decision was hardest this week?
-Working on things related to my day job versus now.
-6. What open question are you still wrestling with?
-7. Which one idea should be the long-form Monday post?
-8. Any approved metrics or outcomes to include (must be in `truth_file.md`)?
-9. Any topics to avoid this week?
-10. Preferred tone for next week (pragmatic, reflective, assertive, etc.)?
-reflective
+Last week I got to discuss AI, demo AI, and help the LendingTree product and creative orgs get set up with Codex during an onsite. I started building some skills to share with my colleagues when they use Codex.
 
-________________________________
+2. What changed, shipped, or moved forward?
+I found how easy it became to work on more and more projects with AI, and how quickly the bottleneck started to be my ability to context switch. I also patched the PR agency so that this week will have all three posts. I made more refinement to an application I am using to better communication between executives and engineers on work projects.
+
+3. What did you try that did not work, and what did you learn?
+My PR agency failed in its first week, sending two of three posts before the workflow reset Friday morning.
+
+4. What result surprised you (good or bad)?
+A lot of colleagues were excited by the Codex demo. The PR agency breaking on Friday did not surprise me, since it was my first real end-to-end workflow for that application.
+
+5. What tradeoff or decision was hardest this week?
+Context switching between AI projects.
+
+6. What open question are you still wrestling with?
+This week I am struggling with a new concept of multi-agent builds, when several Codex sessions are communicating with one another with specific task scope.
+
+7. Which one idea should be the long-form Monday post?
+Helping others learn this new technology helps you learn it too.
+
+8. Any approved metrics or outcomes to include (must be in `truth_file.md`)?
+None.
+
+9. Any topics to avoid this week?
+None.
+
+10. Preferred tone for next week (pragmatic, reflective, assertive, etc.)?
+Reflective.
