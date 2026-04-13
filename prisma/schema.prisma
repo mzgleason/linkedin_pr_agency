@@ -11,12 +11,21 @@ model Topic {
   id          String        @id @default(uuid())
   title       String
   summary     String?
+  inboxStatus TopicInboxStatus @default(PENDING)
+  opinionPitch String?
+  whyItMatters String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   sources     TopicSource[]
   opinions    Opinion[]
   drafts      Draft[]
   researchRun ResearchRun[]
+}
+
+enum TopicInboxStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model TopicSource {
