@@ -3,34 +3,61 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function TopicsPage() {
+type TopicsPageProps = {
+  searchParams?: Promise<{ status?: string }>;
+};
+
+const allowedStatuses = ["APPROVED", "IN_PROGRESS", "SAVED", "REJECTED", "NEW"] as const;
+type AllowedStatus = (typeof allowedStatuses)[number];
+
+function coerceStatus(raw: string | undefined): AllowedStatus | null {
+  if (!raw) return null;
+  const normalized = raw.toUpperCase().trim();
+  return (allowedStatuses as readonly string[]).includes(normalized) ? (normalized as AllowedStatus) : null;
+}
+
+export default async function TopicsPage({ searchParams }: TopicsPageProps) {
+  const params = (await searchParams) ?? {};
+  const status = coerceStatus(params.status);
+
+  const where =
+    status === null
+      ? { status: { in: ["APPROVED", "IN_PROGRESS"] as const } }
+      : { status };
+
   const topics = await prisma.topic.findMany({
-    where: { inboxStatus: "APPROVED" },
+    where,
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
       title: true,
       createdAt: true,
+      status: true,
       opinions: { select: { id: true }, take: 1, orderBy: { createdAt: "desc" } },
       drafts: { select: { id: true, createdAt: true }, take: 1, orderBy: { createdAt: "desc" } },
     },
   });
 
+  const heading = status ? `${status.toLowerCase().replace("_", " ")} topics` : "Active topics";
+  const subheading = status
+    ? "Filtered by status."
+    : "Approved or in-progress topics ready for drafting.";
+
   return (
     <div className="space-y-4">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Approved topics</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{heading}</h1>
           <p className="mt-1 text-sm text-neutral-600">
-            Capture an opinion, then generate a long-form LinkedIn draft with citations.
+            {subheading}
           </p>
         </div>
-        <div className="text-sm text-neutral-600">{topics.length} approved</div>
+        <div className="text-sm text-neutral-600">{topics.length} total</div>
       </div>
 
       {topics.length === 0 ? (
         <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-          No approved topics yet. Approve one in the inbox.
+          No topics match this filter.
         </div>
       ) : (
         <div className="space-y-3">
@@ -75,6 +102,9 @@ export default async function TopicsPage() {
 
                 <div className="mt-3 flex items-center gap-3 text-xs text-neutral-600">
                   <div className="rounded-full bg-neutral-100 px-2 py-1">
+                    Status: {topic.status.toLowerCase().replace("_", " ")}
+                  </div>
+                  <div className="rounded-full bg-neutral-100 px-2 py-1">
                     Opinion: {hasOpinion ? "Captured" : "Missing"}
                   </div>
                   <div className="rounded-full bg-neutral-100 px-2 py-1">
@@ -90,4 +120,3 @@ export default async function TopicsPage() {
     </div>
   );
 }
-

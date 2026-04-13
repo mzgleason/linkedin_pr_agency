@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { decideTopicInboxStatus } from "./actions";
+import { decideTopicStatus } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function TopicInboxPage() {
   const topics = await prisma.topic.findMany({
-    where: { inboxStatus: "PENDING" },
+    where: { status: "NEW" },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -23,15 +23,15 @@ export default async function TopicInboxPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Topic inbox</h1>
           <p className="mt-1 text-sm text-neutral-600">
-            Approve topics to move forward to drafting. Reject to drop them from the queue.
+            Approve topics to move forward to drafting. Save to review later. Reject to drop them.
           </p>
         </div>
-        <div className="text-sm text-neutral-600">{topics.length} pending</div>
+        <div className="text-sm text-neutral-600">{topics.length} new</div>
       </div>
 
       {topics.length === 0 ? (
         <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-          No pending topics.
+          No new topics.
         </div>
       ) : (
         <div className="space-y-3">
@@ -48,7 +48,7 @@ export default async function TopicInboxPage() {
                   </div>
                 </div>
                 <div className="shrink-0">
-                  <form action={decideTopicInboxStatus} className="flex items-center gap-2">
+                  <form action={decideTopicStatus} className="flex items-center gap-2">
                     <input type="hidden" name="topicId" value={topic.id} />
                     <button
                       type="submit"
@@ -57,6 +57,14 @@ export default async function TopicInboxPage() {
                       className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
                     >
                       Approve
+                    </button>
+                    <button
+                      type="submit"
+                      name="decision"
+                      value="SAVED"
+                      className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-800 hover:bg-neutral-50"
+                    >
+                      Save
                     </button>
                     <button
                       type="submit"
@@ -77,7 +85,7 @@ export default async function TopicInboxPage() {
                   </div>
                   <div className="mt-1 text-neutral-800">
                     {topic.opinionPitch?.trim() ||
-                      "â€”"}
+                      "—"}
                   </div>
                 </div>
 
@@ -86,7 +94,7 @@ export default async function TopicInboxPage() {
                     Why it matters
                   </div>
                   <div className="mt-1 text-neutral-800">
-                    {(topic.whyItMatters ?? topic.summary)?.trim() || "â€”"}
+                    {(topic.whyItMatters ?? topic.summary)?.trim() || "—"}
                   </div>
                 </div>
               </div>
@@ -97,4 +105,3 @@ export default async function TopicInboxPage() {
     </div>
   );
 }
-

@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { TopicInboxStatus } from "@prisma/client";
+import { TopicStatus } from "@prisma/client";
 
-export async function decideTopicInboxStatus(formData: FormData) {
+export async function decideTopicStatus(formData: FormData) {
   const topicId = formData.get("topicId");
   const decision = formData.get("decision");
 
@@ -12,15 +12,25 @@ export async function decideTopicInboxStatus(formData: FormData) {
     throw new Error("Missing topicId");
   }
 
-  if (decision !== "APPROVED" && decision !== "REJECTED") {
+  if (decision !== "APPROVED" && decision !== "REJECTED" && decision !== "SAVED") {
     throw new Error("Invalid decision");
   }
 
-  await prisma.topic.update({
-    where: { id: topicId },
-    data: { inboxStatus: decision as TopicInboxStatus },
+  const nextStatus = decision as TopicStatus;
+
+  const result = await prisma.topic.updateMany({
+    where: { id: topicId, status: "NEW" },
+    data: { status: nextStatus },
   });
+
+  if (result.count === 0) {
+    const current = await prisma.topic.findUnique({
+      where: { id: topicId },
+      select: { status: true },
+    });
+    if (!current) throw new Error("Topic not found");
+    throw new Error(`Invalid status transition from ${current.status} to ${nextStatus}`);
+  }
 
   revalidatePath("/inbox");
 }
-
