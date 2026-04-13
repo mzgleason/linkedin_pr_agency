@@ -11,7 +11,7 @@ model Topic {
   id          String        @id @default(uuid())
   title       String
   summary     String?
-  inboxStatus TopicInboxStatus @default(PENDING)
+  status      TopicStatus @default(NEW)
   opinionPitch String?
   whyItMatters String?
   createdAt   DateTime      @default(now())
@@ -22,10 +22,12 @@ model Topic {
   researchRun ResearchRun[]
 }
 
-enum TopicInboxStatus {
-  PENDING
+enum TopicStatus {
+  NEW
   APPROVED
   REJECTED
+  SAVED
+  IN_PROGRESS
 }
 
 model TopicSource {

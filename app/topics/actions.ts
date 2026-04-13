@@ -39,7 +39,7 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
     select: {
       id: true,
       title: true,
-      inboxStatus: true,
+      status: true,
       summary: true,
       whyItMatters: true,
       opinionPitch: true,
@@ -48,11 +48,19 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
   });
 
   if (!topic) throw new Error("Topic not found");
-  if (topic.inboxStatus !== "APPROVED") throw new Error("Topic is not approved");
+  if (topic.status !== "APPROVED" && topic.status !== "IN_PROGRESS") {
+    throw new Error("Topic is not approved");
+  }
 
   const extraUrls = parseUrls(typeof extraSourcesRaw === "string" ? extraSourcesRaw : null);
 
   const result = await prisma.$transaction(async (tx) => {
+    await tx.topic.update({
+      where: { id: topic.id },
+      data: { status: "IN_PROGRESS" },
+      select: { id: true },
+    });
+
     const opinion = await tx.opinion.create({
       data: {
         topicId: topic.id,
@@ -122,7 +130,7 @@ export async function regenerateDraft(formData: FormData) {
     select: {
       id: true,
       title: true,
-      inboxStatus: true,
+      status: true,
       summary: true,
       whyItMatters: true,
       opinionPitch: true,
@@ -132,9 +140,17 @@ export async function regenerateDraft(formData: FormData) {
   });
 
   if (!topic) throw new Error("Topic not found");
-  if (topic.inboxStatus !== "APPROVED") throw new Error("Topic is not approved");
+  if (topic.status !== "APPROVED" && topic.status !== "IN_PROGRESS") {
+    throw new Error("Topic is not approved");
+  }
   const latestOpinion = topic.opinions[0];
   if (!latestOpinion) throw new Error("No opinion captured yet");
+
+  await prisma.topic.update({
+    where: { id: topic.id },
+    data: { status: "IN_PROGRESS" },
+    select: { id: true },
+  });
 
   const allSources = await prisma.topicSource.findMany({
     where: { topicId: topic.id },
