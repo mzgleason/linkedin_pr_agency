@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Topic {
+  id          String        @id @default(uuid())
+  title       String
+  summary     String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  sources     TopicSource[]
+  opinions    Opinion[]
+  drafts      Draft[]
+  researchRun ResearchRun[]
+}
+
+model TopicSource {
+  id          String   @id @default(uuid())
+  topicId     String
+  topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  url         String
+  sourceType  String?
+  title       String?
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([topicId])
+  @@unique([topicId, url])
+}
+
+model Opinion {
+  id        String   @id @default(uuid())
+  topicId   String
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  stance    String?
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([topicId])
+}
+
+model Draft {
+  id        String      @id @default(uuid())
+  topicId   String
+  topic     Topic       @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  status    DraftStatus @default(DRAFT)
+  content   String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([topicId])
+}
+
+enum DraftStatus {
+  DRAFT
+  REVIEW
+  READY
+  PUBLISHED
+  ARCHIVED
+}
+
+model ResearchRun {
+  id         String            @id @default(uuid())
+  topicId    String?
+  topic      Topic?            @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  status     ResearchRunStatus @default(STARTED)
+  input      Json?
+  output     Json?
+  startedAt  DateTime          @default(now())
+  finishedAt DateTime?
+  createdAt  DateTime          @default(now())
+
+  @@index([topicId])
+}
+
+enum ResearchRunStatus {
+  STARTED
+  SUCCEEDED
+  FAILED
+}
