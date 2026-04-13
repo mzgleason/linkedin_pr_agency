@@ -26,3 +26,22 @@ GitLab:
 1. Follow `gitlab_setup.md` to initialize this folder as its own repository.
 2. Push to GitLab and add CI variables.
 3. Use scheduled pipelines to run orchestration and auto-commit approved draft updates.
+
+## Database (Postgres + Prisma)
+
+Start Postgres (docker):
+
+```bash
+docker compose up -d
+```
+
+Create `.env` with `DATABASE_URL` (see `.env.example`).
+
+Generate Prisma client + run migrations:
+
+```bash
+npm run prisma:generate
+npm run prisma:migrate
+```
+
+Health check: `GET /api/health/db`
