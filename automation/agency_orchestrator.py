@@ -704,6 +704,111 @@ Feedback:
 """
 
 
+def build_topic_discovery_prompt(truth_file, intake_answers, week_start, count=10):
+    memory_context = format_memory_context()
+    count = int(count or 10)
+    if count < 5:
+        count = 5
+    if count > 20:
+        count = 20
+    return f"""You are Iris, a LinkedIn PR agency strategist.
+Generate opinionated (not neutral) topic pitches for LinkedIn posts.
+Use only approved inputs; do not include confidential details, partner names, or unapproved metrics.
+Avoid reusing the same angles/claims from memory.
+
+Truth file:
+{truth_file}
+
+Interview answers:
+{intake_answers}
+
+Memory from previous weeks (avoid repeating ideas):
+{memory_context}
+
+Create {count} topic pitches for the week of {week_start}.
+Each pitch must be debatable and framed as a strong point of view.
+Avoid generic summaries.
+
+Return ONLY valid JSON with this exact schema:
+{{
+  "topics": [
+    {{
+      "topic": "...",
+      "why_it_matters": "...",
+      "opinion_pitch": "...",
+      "angle_type": "...",
+      "strength_score": 0
+    }}
+  ]
+}}
+Where:
+- opinion_pitch is 2–3 sentences and clearly debatable
+- angle_type is a short label (e.g., contrarian, myth_bust, framework, prediction, war_story, teardown)
+- strength_score is a number 1–10 (10 = strongest)"""
+
+
+def validate_topic_pitches(pitches, min_count=5):
+    if not isinstance(pitches, list):
+        raise ValueError("Topic pitches must be a list.")
+    cleaned = []
+    for item in pitches:
+        if not isinstance(item, dict):
+            continue
+        topic = str(item.get("topic", "")).strip()
+        why = str(item.get("why_it_matters", "")).strip()
+        opinion = str(item.get("opinion_pitch", "")).strip()
+        angle = str(item.get("angle_type", "")).strip()
+        strength = item.get("strength_score", None)
+        try:
+            strength_num = float(strength)
+        except (TypeError, ValueError):
+            strength_num = None
+        if not topic or not why or not opinion or not angle or strength_num is None:
+            continue
+        if strength_num < 1 or strength_num > 10:
+            continue
+        cleaned.append(
+            {
+                "topic": topic,
+                "why_it_matters": why,
+                "opinion_pitch": opinion,
+                "angle_type": angle,
+                "strength_score": strength_num,
+            }
+        )
+    if len(cleaned) < int(min_count or 5):
+        raise ValueError(f"Expected at least {min_count} valid topic pitches, got {len(cleaned)}.")
+    cleaned.sort(key=lambda x: x["strength_score"], reverse=True)
+    return cleaned
+
+
+def save_topic_pitches(week_start, pitches):
+    DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
+    json_path = DRAFTS_DIR / f"{week_start}_topic_pitches.json"
+    md_path = DRAFTS_DIR / f"{week_start}_topic_pitches.md"
+    json_path.write_text(json.dumps({"week_start": week_start, "topics": pitches}, indent=2), encoding="utf-8")
+    lines = [f"# Topic Pitches - Week of {week_start}", ""]
+    for idx, item in enumerate(pitches, start=1):
+        lines.extend(
+            [
+                f"## {idx}. {item.get('topic','')}",
+                "",
+                f"**Angle type:** {item.get('angle_type','')}",
+                f"**Strength score:** {item.get('strength_score','')}",
+                "",
+                f"**Why it matters:** {item.get('why_it_matters','')}",
+                "",
+                f"**Opinion pitch:** {item.get('opinion_pitch','')}",
+                "",
+            ]
+        )
+    md_path.write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
+    return (
+        str(json_path.relative_to(ROOT)).replace("\\", "/"),
+        str(md_path.relative_to(ROOT)).replace("\\", "/"),
+    )
+
+
 def save_storyboard(week_start, storyboard):
     path = DRAFTS_DIR / f"{week_start}_storyboard.md"
     DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -727,6 +832,17 @@ def save_storyboard(week_start, storyboard):
     content.append(f"CTA intent: {storyboard.get('cta_intent', '')}")
     path.write_text("\n".join(content).strip() + "\n", encoding="utf-8")
     return str(path.relative_to(ROOT)).replace("\\", "/")
+
+
+def run_topic_discovery(week_start, count=10):
+    truth_file = read_file(TRUTH_FILE_PATH)
+    intake_answers = read_file(INTAKE_ANSWERS_PATH)
+    prompt = build_topic_discovery_prompt(truth_file, intake_answers, week_start, count=count)
+    raw = chat_complete("You are a helpful writing assistant.", prompt)
+    payload = parse_json_block(raw)
+    pitches = payload.get("topics", payload if isinstance(payload, list) else [])
+    pitches = validate_topic_pitches(pitches, min_count=5)
+    return save_topic_pitches(week_start, pitches)
 
 
 def build_storyboard_email_body(week_start, storyboard_path, storyboard):
