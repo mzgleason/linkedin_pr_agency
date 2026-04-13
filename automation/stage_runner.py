@@ -149,6 +149,10 @@ def run_stage(stage, week_start, use_mocks, fixtures_path, report=False, skip_we
         run_through_storyboard(week_start, config, stop_after_storyboard=True)
     elif stage == "storyboard":
         run_through_storyboard(week_start, config, stop_after_storyboard=True)
+    elif stage == "topics":
+        target_week_start = resolve_week_start(week_start, config).isoformat()
+        json_path, md_path = ao.run_topic_discovery(target_week_start, count=config.get("topic_count", 10))
+        print(f"Saved topic pitches:\n- {json_path}\n- {md_path}")
     elif stage == "drafts":
         run_through_drafts(week_start, config)
     elif stage == "feedback":
@@ -311,6 +315,7 @@ def build_parser():
     parser = argparse.ArgumentParser(description="Run local LinkedIn PR agency stages.")
     subparsers = parser.add_subparsers(dest="stage", required=True)
     subparsers.add_parser("all", parents=[parent])
+    subparsers.add_parser("topics", parents=[parent])
     subparsers.add_parser("interview", parents=[parent])
     subparsers.add_parser("storyboard", parents=[parent])
     subparsers.add_parser("drafts", parents=[parent])

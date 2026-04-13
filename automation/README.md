@@ -41,6 +41,7 @@ requests one feedback round, and applies revisions.
 ## Local Stage Runner (Mocks)
 Run individual stages with deterministic mocks:
 - `python stage_runner.py all --use-mocks`
+- `python stage_runner.py topics --use-mocks`
 - `python stage_runner.py interview --use-mocks`
 - `python stage_runner.py storyboard --use-mocks`
 - `python stage_runner.py drafts --use-mocks`

@@ -10,5 +10,6 @@
   "sender_policy": "any",
   "openai_model": "",
   "require_feedback_rounds": 1,
-  "max_additional_revisions": 2
+  "max_additional_revisions": 2,
+  "topic_count": 10
 }

@@ -21,6 +21,7 @@ Workflow:
 Local validation:
 - Run the full mocked flow: `python automation/stage_runner.py all --use-mocks`
 - Run a single stage: `python automation/stage_runner.py interview --use-mocks`
+- Generate topic pitches: `python automation/stage_runner.py topics --use-mocks`
 
 GitLab:
 1. Follow `gitlab_setup.md` to initialize this folder as its own repository.

@@ -26,6 +26,8 @@ from agency_orchestrator import (  # noqa: E402
     slugify,
     weekly_readiness,
     word_count,
+    save_topic_pitches,
+    validate_topic_pitches,
 )
 
 
@@ -116,6 +118,77 @@ class AgencyOrchestratorTests(unittest.TestCase):
         ]
         approved = parse_approval_targets("Looks good, final. Please proceed.", pending)
         self.assertEqual(sorted(approved), sorted(pending))
+
+    def test_validate_topic_pitches_filters_and_sorts(self):
+        pitches = [
+            {
+                "topic": "A",
+                "why_it_matters": "B",
+                "opinion_pitch": "C. D.",
+                "angle_type": "contrarian",
+                "strength_score": 3,
+            },
+            {
+                "topic": "Top",
+                "why_it_matters": "Why",
+                "opinion_pitch": "One. Two.",
+                "angle_type": "framework",
+                "strength_score": 9,
+            },
+            {"topic": "", "why_it_matters": "x", "opinion_pitch": "y", "angle_type": "z", "strength_score": 5},
+            {
+                "topic": "Low",
+                "why_it_matters": "Why",
+                "opinion_pitch": "One. Two.",
+                "angle_type": "framework",
+                "strength_score": 1,
+            },
+            {
+                "topic": "Mid",
+                "why_it_matters": "Why",
+                "opinion_pitch": "One. Two.",
+                "angle_type": "framework",
+                "strength_score": 6,
+            },
+            {
+                "topic": "Also",
+                "why_it_matters": "Why",
+                "opinion_pitch": "One. Two.",
+                "angle_type": "framework",
+                "strength_score": 7,
+            },
+        ]
+        cleaned = validate_topic_pitches(pitches, min_count=5)
+        self.assertEqual(len(cleaned), 5)
+        self.assertEqual(cleaned[0]["topic"], "Top")
+        self.assertGreaterEqual(cleaned[0]["strength_score"], cleaned[-1]["strength_score"])
+
+    def test_save_topic_pitches_writes_files(self):
+        root = self._make_tmp_root()
+        drafts = root / "drafts"
+        drafts.mkdir(parents=True, exist_ok=True)
+        original_root = ao.ROOT
+        original_drafts = ao.DRAFTS_DIR
+        ao.ROOT = root
+        ao.DRAFTS_DIR = drafts
+        try:
+            json_path, md_path = save_topic_pitches(
+                "2026-04-13",
+                [
+                    {
+                        "topic": "A",
+                        "why_it_matters": "B",
+                        "opinion_pitch": "C. D.",
+                        "angle_type": "framework",
+                        "strength_score": 7,
+                    }
+                ],
+            )
+        finally:
+            ao.ROOT = original_root
+            ao.DRAFTS_DIR = original_drafts
+        self.assertTrue((root / json_path).exists())
+        self.assertTrue((root / md_path).exists())
 
     def test_parse_approval_targets_does_not_override_revision(self):
         pending = [
