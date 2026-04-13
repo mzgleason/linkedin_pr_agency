@@ -4,13 +4,13 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { TopicStatus } from "@prisma/client";
 
-export async function decideTopicStatus(formData: FormData) {
-  const topicId = formData.get("topicId");
-  const decision = formData.get("decision");
+export type TopicDecision = "APPROVED" | "REJECTED" | "SAVED";
 
-  if (typeof topicId !== "string" || topicId.length === 0) {
-    throw new Error("Missing topicId");
-  }
+export async function decideTopicStatusDirect(args: { topicId: string; decision: TopicDecision }) {
+  const topicId = args.topicId;
+  const decision = args.decision;
+
+  if (typeof topicId !== "string" || topicId.length === 0) throw new Error("Missing topicId");
 
   if (decision !== "APPROVED" && decision !== "REJECTED" && decision !== "SAVED") {
     throw new Error("Invalid decision");
@@ -19,7 +19,7 @@ export async function decideTopicStatus(formData: FormData) {
   const nextStatus = decision as TopicStatus;
 
   const result = await prisma.topic.updateMany({
-    where: { id: topicId, status: "NEW" },
+    where: { id: topicId, status: { in: ["NEW", "SAVED"] } },
     data: { status: nextStatus },
   });
 
@@ -33,4 +33,21 @@ export async function decideTopicStatus(formData: FormData) {
   }
 
   revalidatePath("/inbox");
+  revalidatePath("/saved");
+  revalidatePath("/topics");
+}
+
+export async function decideTopicStatus(formData: FormData) {
+  const topicId = formData.get("topicId");
+  const decision = formData.get("decision");
+
+  if (typeof topicId !== "string" || topicId.length === 0) {
+    throw new Error("Missing topicId");
+  }
+
+  if (decision !== "APPROVED" && decision !== "REJECTED" && decision !== "SAVED") {
+    throw new Error("Invalid decision");
+  }
+
+  await decideTopicStatusDirect({ topicId, decision });
 }

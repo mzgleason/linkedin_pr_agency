@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { TopicStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function TopicsPage({ searchParams }: TopicsPageProps) {
 
   const where =
     status === null
-      ? { status: { in: ["APPROVED", "IN_PROGRESS"] as const } }
+      ? { status: { in: ["APPROVED", "IN_PROGRESS"] as TopicStatus[] } }
       : { status };
 
   const topics = await prisma.topic.findMany({

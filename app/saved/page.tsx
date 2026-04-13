@@ -1,11 +1,11 @@
-﻿import { prisma } from "@/lib/prisma";
-import InboxTopicList from "./topic-list";
+import { prisma } from "@/lib/prisma";
+import SavedTopicList from "./topic-list";
 
 export const dynamic = "force-dynamic";
 
-export default async function TopicInboxPage() {
+export default async function SavedTopicsPage() {
   const topics = await prisma.topic.findMany({
-    where: { status: "NEW" },
+    where: { status: "SAVED" },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -21,21 +21,20 @@ export default async function TopicInboxPage() {
     <div className="space-y-4">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Topic inbox</h1>
-          <p className="mt-1 text-sm text-neutral-600">
-            Approve topics to move forward to drafting. Save to review later. Reject to drop them.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">Saved topics</h1>
+          <p className="mt-1 text-sm text-neutral-600">Topics you saved to review later.</p>
         </div>
-        <div className="text-sm text-neutral-600">{topics.length} new</div>
+        <div className="text-sm text-neutral-600">{topics.length} saved</div>
       </div>
 
       {topics.length === 0 ? (
         <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-          No new topics.
+          No saved topics.
         </div>
       ) : (
-        <InboxTopicList initialTopics={topics} />
+        <SavedTopicList initialTopics={topics} />
       )}
     </div>
   );
 }
+
