@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { generateLinkedInDraft } from "@/lib/draftGenerator";
+import { generateEvidencePack } from "@/lib/secondPassResearchEngine";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -121,24 +122,45 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
       sources: allSources,
     });
 
-    await tx.researchRun.create({
-      data: {
-        topicId: topic.id,
-        status: "SUCCEEDED",
-        input: { opinionId: opinion.id, extraUrls },
-        output: { sources: allSources },
-        finishedAt: new Date(),
-      },
-      select: { id: true },
-    });
-
     const draft = await tx.draft.create({
       data: { topicId: topic.id, content: draftContent },
       select: { id: true },
     });
 
-    return { draftId: draft.id };
+    return { draftId: draft.id, opinionId: opinion.id, sources: allSources };
   });
+
+  try {
+    const evidencePack = await generateEvidencePack({
+      topicTitle: topic.title,
+      stance: typeof stance === "string" ? stance.trim() : null,
+      opinionContent: stitchedOpinionContent,
+      sources: result.sources,
+    });
+
+    await prisma.researchRun.create({
+      data: {
+        topicId: topic.id,
+        status: "SUCCEEDED",
+        input: { opinionId: result.opinionId, extraUrls },
+        output: { sources: result.sources, evidencePack },
+        finishedAt: new Date(),
+      },
+      select: { id: true },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    await prisma.researchRun.create({
+      data: {
+        topicId: topic.id,
+        status: "FAILED",
+        input: { opinionId: result.opinionId, extraUrls },
+        output: { sources: result.sources, error: message },
+        finishedAt: new Date(),
+      },
+      select: { id: true },
+    });
+  }
 
   revalidatePath("/topics");
   revalidatePath("/opinion-queue");
