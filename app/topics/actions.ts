@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { generateLinkedInDraft } from "@/lib/draftGenerator";
+import { generateLinkedInDraftVariants } from "@/lib/draftGenerator";
 import { generateEvidencePack } from "@/lib/secondPassResearchEngine";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -112,7 +112,7 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
       orderBy: { createdAt: "asc" },
     });
 
-    const draftContent = generateLinkedInDraft({
+    const draftVariants = generateLinkedInDraftVariants({
       topicTitle: topic.title,
       topicSummary: topic.summary,
       whyItMatters: topic.whyItMatters,
@@ -122,12 +122,21 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
       sources: allSources,
     });
 
-    const draft = await tx.draft.create({
-      data: { topicId: topic.id, content: draftContent },
-      select: { id: true },
-    });
+    const createdDrafts = [];
+    for (const variant of draftVariants) {
+      const draft = await tx.draft.create({
+        data: {
+          topicId: topic.id,
+          content: variant.content,
+          versionKey: variant.key,
+          versionLabel: variant.label,
+        },
+        select: { id: true },
+      });
+      createdDrafts.push(draft.id);
+    }
 
-    return { draftId: draft.id, opinionId: opinion.id, sources: allSources };
+    return { draftIds: createdDrafts, opinionId: opinion.id, sources: allSources };
   });
 
   try {
@@ -162,9 +171,12 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
     });
   }
 
+  const primaryDraftId = result.draftIds[0];
+  if (!primaryDraftId) throw new Error("Draft generation failed");
+
   revalidatePath("/topics");
   revalidatePath("/opinion-queue");
-  redirect(`/topics/${topicId}/draft?draftId=${encodeURIComponent(result.draftId)}`);
+  redirect(`/topics/${topicId}/draft?draftId=${encodeURIComponent(primaryDraftId)}`);
 }
 
 export async function regenerateDraft(formData: FormData) {
@@ -217,7 +229,7 @@ export async function regenerateDraft(formData: FormData) {
     orderBy: { createdAt: "asc" },
   });
 
-  const draftContent = generateLinkedInDraft({
+  const draftVariants = generateLinkedInDraftVariants({
     topicTitle: topic.title,
     topicSummary: topic.summary,
     whyItMatters: topic.whyItMatters,
@@ -227,11 +239,23 @@ export async function regenerateDraft(formData: FormData) {
     sources: allSources,
   });
 
-  const draft = await prisma.draft.create({
-    data: { topicId: topic.id, content: draftContent },
-    select: { id: true },
-  });
+  const createdDraftIds: string[] = [];
+  for (const variant of draftVariants) {
+    const draft = await prisma.draft.create({
+      data: {
+        topicId: topic.id,
+        content: variant.content,
+        versionKey: variant.key,
+        versionLabel: variant.label,
+      },
+      select: { id: true },
+    });
+    createdDraftIds.push(draft.id);
+  }
+
+  const primaryDraftId = createdDraftIds[0];
+  if (!primaryDraftId) throw new Error("Draft regeneration failed");
 
   revalidatePath(`/topics/${topicId}/draft`);
-  redirect(`/topics/${topicId}/draft?draftId=${encodeURIComponent(draft.id)}`);
+  redirect(`/topics/${topicId}/draft?draftId=${encodeURIComponent(primaryDraftId)}`);
 }
