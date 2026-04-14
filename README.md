@@ -46,3 +46,7 @@ npm run prisma:migrate
 ```
 
 Health check: `GET /api/health/db`
+
+## Evidence Pack (Second Pass Research)
+
+When you capture an opinion for a topic, the app generates a structured "evidence pack" (supporting examples, stats, company signals, and counterpoints) from the topic's sources and displays it on the draft page.

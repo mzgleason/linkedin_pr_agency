@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { regenerateDraft } from "../../actions";
+import type { EvidencePack } from "@/lib/secondPassResearchEngine";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,11 @@ export default async function TopicDraftPage({
     select: {
       id: true,
       title: true,
+      researchRun: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { status: true, createdAt: true, output: true },
+      },
       drafts: {
         where: draftId ? { id: draftId } : undefined,
         orderBy: { createdAt: "desc" },
@@ -37,6 +43,8 @@ export default async function TopicDraftPage({
   }
 
   const draft = topic.drafts[0];
+  const latestResearch = topic.researchRun[0] ?? null;
+  const evidencePack = (latestResearch?.output as { evidencePack?: EvidencePack } | null)?.evidencePack ?? null;
 
   return (
     <div className="space-y-4">
@@ -71,6 +79,70 @@ export default async function TopicDraftPage({
           <pre className="whitespace-pre-wrap rounded-2xl border border-neutral-200 bg-white p-4 text-sm leading-6 text-neutral-900 shadow-sm">
             {draft.content}
           </pre>
+          {latestResearch ? (
+            <div className="rounded-2xl border border-neutral-200 bg-white p-4 text-sm text-neutral-900 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold">Evidence pack</div>
+                <div className="text-xs text-neutral-500">
+                  {latestResearch.status} · {new Date(latestResearch.createdAt).toLocaleString()}
+                </div>
+              </div>
+              {evidencePack ? (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <div className="text-xs font-semibold text-neutral-600">Supporting examples</div>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-neutral-800">
+                      {evidencePack.summary.supportingExamples.length > 0 ? (
+                        evidencePack.summary.supportingExamples.map((item) => <li key={item}>{item}</li>)
+                      ) : (
+                        <li>No examples extracted yet.</li>
+                      )}
+                    </ul>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-neutral-600">Stats</div>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-neutral-800">
+                      {evidencePack.summary.stats.length > 0 ? (
+                        evidencePack.summary.stats.slice(0, 8).map((stat) => (
+                          <li key={`${stat.sourceUrl}:${stat.value}:${stat.context}`}>
+                            <span className="font-semibold">{stat.value}</span> — {stat.context} ({stat.sourceUrl})
+                          </li>
+                        ))
+                      ) : (
+                        <li>No stats extracted yet.</li>
+                      )}
+                    </ul>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-neutral-600">Company signals</div>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-neutral-800">
+                      {evidencePack.summary.companySignals.length > 0 ? (
+                        evidencePack.summary.companySignals.map((signal) => (
+                          <li key={`${signal.sourceUrl}:${signal.signal}`}>
+                            {signal.signal} ({signal.sourceUrl})
+                          </li>
+                        ))
+                      ) : (
+                        <li>No signals detected yet.</li>
+                      )}
+                    </ul>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-neutral-600">Counterpoints</div>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-neutral-800">
+                      {evidencePack.summary.counterpoints.map((cp) => (
+                        <li key={cp}>{cp}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-2 text-sm text-neutral-700">
+                  No evidence pack available yet. (If a source blocked fetching, the run may be marked as FAILED.)
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
