@@ -34,6 +34,7 @@ export async function decideTopicStatusDirect(args: { topicId: string; decision:
 
   revalidatePath("/inbox");
   revalidatePath("/saved");
+  revalidatePath("/opinion-queue");
   revalidatePath("/topics");
 }
 

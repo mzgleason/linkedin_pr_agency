@@ -117,6 +117,7 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
   });
 
   revalidatePath("/topics");
+  revalidatePath("/opinion-queue");
   redirect(`/topics/${topicId}/draft?draftId=${encodeURIComponent(result.draftId)}`);
 }
 
