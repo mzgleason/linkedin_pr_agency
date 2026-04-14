@@ -49,6 +49,9 @@ model Opinion {
   topicId   String
   topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
   stance    String?
+  coreTake  String
+  whatPeopleMiss String?
+  realWorldExample String?
   content   String
   createdAt DateTime @default(now())
 

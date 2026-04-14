@@ -18,7 +18,11 @@ export default async function TopicOpinionPage({
       opinionPitch: true,
       whyItMatters: true,
       summary: true,
-      opinions: { orderBy: { createdAt: "desc" }, take: 1, select: { stance: true, content: true } },
+      opinions: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { stance: true, coreTake: true, whatPeopleMiss: true, realWorldExample: true },
+      },
       sources: { orderBy: { createdAt: "desc" }, take: 3, select: { url: true, title: true } },
     },
   });
@@ -67,23 +71,11 @@ export default async function TopicOpinionPage({
 
         <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
           <label className="block text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            Stance (optional)
-          </label>
-          <input
-            name="stance"
-            defaultValue={latestOpinion?.stance ?? ""}
-            placeholder="e.g., Hot take / Nuanced / Contrarian / Practical"
-            className="mt-2 w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-neutral-400"
-          />
-        </div>
-
-        <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-          <label className="block text-xs font-semibold uppercase tracking-wide text-neutral-500">
-            Opinion (required)
+            Core take (required)
           </label>
           <textarea
-            name="opinionContent"
-            defaultValue={latestOpinion?.content ?? ""}
+            name="coreTake"
+            defaultValue={latestOpinion?.coreTake ?? ""}
             placeholder="Write your opinion in 3–6 sentences. What do you believe, and why?"
             className="mt-2 min-h-36 w-full resize-y rounded-xl border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-neutral-400"
             required
@@ -91,6 +83,30 @@ export default async function TopicOpinionPage({
           <div className="mt-2 text-xs text-neutral-500">
             Tip: include a concrete example + a tradeoff.
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+          <label className="block text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            What people miss (optional)
+          </label>
+          <textarea
+            name="whatPeopleMiss"
+            defaultValue={latestOpinion?.whatPeopleMiss ?? ""}
+            placeholder="One thing most people get wrong about this…"
+            className="mt-2 min-h-24 w-full resize-y rounded-xl border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-neutral-400"
+          />
+        </div>
+
+        <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+          <label className="block text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            Real-world example (optional)
+          </label>
+          <textarea
+            name="realWorldExample"
+            defaultValue={latestOpinion?.realWorldExample ?? ""}
+            placeholder="A specific moment, metric, or story that supports the take…"
+            className="mt-2 min-h-24 w-full resize-y rounded-xl border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-neutral-400"
+          />
         </div>
 
         <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
