@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { regenerateDraft } from "../../actions";
+import { regenerateDraft, setPrimaryDraftVersion } from "../../actions";
 import type { EvidencePack } from "@/lib/secondPassResearchEngine";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ export default async function TopicDraftPage({
       drafts: {
         orderBy: { createdAt: "desc" },
         take: 12,
-        select: { id: true, content: true, createdAt: true, versionKey: true, versionLabel: true },
+        select: { id: true, content: true, createdAt: true, versionKey: true, versionLabel: true, status: true },
       },
     },
   });
@@ -81,18 +81,33 @@ export default async function TopicDraftPage({
               <div className="flex flex-wrap gap-2">
                 {topic.drafts.map((item) => {
                   const isActive = item.id === draft.id;
+                  const isReady = item.status === "READY";
                   return (
-                    <Link
-                      key={item.id}
-                      href={`/topics/${topic.id}/draft?draftId=${encodeURIComponent(item.id)}`}
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                        isActive
-                          ? "border-neutral-900 bg-neutral-900 text-white"
-                          : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400"
-                      }`}
-                    >
-                      {item.versionLabel ?? item.versionKey ?? `Draft ${item.id.slice(0, 6)}`}
-                    </Link>
+                    <div key={item.id} className="flex items-center gap-1">
+                      <Link
+                        href={`/topics/${topic.id}/draft?draftId=${encodeURIComponent(item.id)}`}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                          isActive
+                            ? "border-neutral-900 bg-neutral-900 text-white"
+                            : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400"
+                        }`}
+                      >
+                        {item.versionLabel ?? item.versionKey ?? `Draft ${item.id.slice(0, 6)}`}
+                        {isReady ? " · Selected" : ""}
+                      </Link>
+                      {!isReady ? (
+                        <form action={setPrimaryDraftVersion}>
+                          <input type="hidden" name="topicId" value={topic.id} />
+                          <input type="hidden" name="draftId" value={item.id} />
+                          <button
+                            type="submit"
+                            className="rounded-full border border-neutral-200 bg-white px-2 py-1 text-[11px] font-semibold text-neutral-600 hover:border-neutral-300 hover:text-neutral-900"
+                          >
+                            Set selected
+                          </button>
+                        </form>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>

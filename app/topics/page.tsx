@@ -35,7 +35,7 @@ export default async function TopicsPage({ searchParams }: TopicsPageProps) {
       createdAt: true,
       status: true,
       opinions: { select: { id: true }, take: 1, orderBy: { createdAt: "desc" } },
-      drafts: { select: { id: true, createdAt: true }, take: 1, orderBy: { createdAt: "desc" } },
+      drafts: { select: { id: true, createdAt: true, status: true }, take: 5, orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -65,6 +65,7 @@ export default async function TopicsPage({ searchParams }: TopicsPageProps) {
           {topics.map((topic) => {
             const hasOpinion = topic.opinions.length > 0;
             const hasDraft = topic.drafts.length > 0;
+            const selectedDraft = topic.drafts.find((item) => item.status === "READY") ?? topic.drafts[0];
             return (
               <div
                 key={topic.id}
@@ -110,7 +111,9 @@ export default async function TopicsPage({ searchParams }: TopicsPageProps) {
                   </div>
                   <div className="rounded-full bg-neutral-100 px-2 py-1">
                     Draft:{" "}
-                    {hasDraft ? new Date(topic.drafts[0]!.createdAt).toLocaleDateString() : "Missing"}
+                    {hasDraft && selectedDraft
+                      ? `${selectedDraft.status === "READY" ? "Selected" : "Latest"} ${new Date(selectedDraft.createdAt).toLocaleDateString()}`
+                      : "Missing"}
                   </div>
                 </div>
               </div>
