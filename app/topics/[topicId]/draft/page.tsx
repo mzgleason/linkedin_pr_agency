@@ -26,10 +26,9 @@ export default async function TopicDraftPage({
         select: { status: true, createdAt: true, output: true },
       },
       drafts: {
-        where: draftId ? { id: draftId } : undefined,
         orderBy: { createdAt: "desc" },
-        take: 1,
-        select: { id: true, content: true, createdAt: true },
+        take: 12,
+        select: { id: true, content: true, createdAt: true, versionKey: true, versionLabel: true },
       },
     },
   });
@@ -42,7 +41,8 @@ export default async function TopicDraftPage({
     );
   }
 
-  const draft = topic.drafts[0];
+  const selectedDraft = draftId ? topic.drafts.find((item) => item.id === draftId) : topic.drafts[0];
+  const draft = selectedDraft ?? topic.drafts[0];
   const latestResearch = topic.researchRun[0] ?? null;
   const evidencePack = (latestResearch?.output as { evidencePack?: EvidencePack } | null)?.evidencePack ?? null;
 
@@ -62,20 +62,43 @@ export default async function TopicDraftPage({
 
       {draft ? (
         <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-xs text-neutral-500">
-              Generated {new Date(draft.createdAt).toLocaleString()}
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-xs text-neutral-500">Generated {new Date(draft.createdAt).toLocaleString()}</div>
             <form action={regenerateDraft}>
               <input type="hidden" name="topicId" value={topic.id} />
               <button
                 type="submit"
                 className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-800 hover:bg-neutral-50"
               >
-                Regenerate
+                Regenerate 3 versions
               </button>
             </form>
           </div>
+
+          {topic.drafts.length > 1 ? (
+            <div className="rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Versions</div>
+              <div className="flex flex-wrap gap-2">
+                {topic.drafts.map((item) => {
+                  const isActive = item.id === draft.id;
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/topics/${topic.id}/draft?draftId=${encodeURIComponent(item.id)}`}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                        isActive
+                          ? "border-neutral-900 bg-neutral-900 text-white"
+                          : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400"
+                      }`}
+                    >
+                      {item.versionLabel ?? item.versionKey ?? `Draft ${item.id.slice(0, 6)}`}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
           <pre className="whitespace-pre-wrap rounded-2xl border border-neutral-200 bg-white p-4 text-sm leading-6 text-neutral-900 shadow-sm">
             {draft.content}
           </pre>
