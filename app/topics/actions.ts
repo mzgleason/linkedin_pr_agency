@@ -23,15 +23,23 @@ function parseUrls(raw: string | null) {
 export async function captureOpinionAndGenerateDraft(formData: FormData) {
   const topicId = formData.get("topicId");
   const stance = formData.get("stance");
-  const opinionContent = formData.get("opinionContent");
+  const coreTake = formData.get("coreTake");
+  const whatPeopleMiss = formData.get("whatPeopleMiss");
+  const realWorldExample = formData.get("realWorldExample");
   const extraSourcesRaw = formData.get("extraSources");
 
   if (typeof topicId !== "string" || topicId.length === 0) throw new Error("Missing topicId");
-  if (typeof opinionContent !== "string" || opinionContent.trim().length < 20) {
-    throw new Error("Opinion must be at least 20 characters");
+  if (typeof coreTake !== "string" || coreTake.trim().length < 20) {
+    throw new Error("Core take must be at least 20 characters");
   }
-  if (opinionContent.length > 4000) {
-    throw new Error("Opinion is too long");
+  if (coreTake.length > 4000) {
+    throw new Error("Core take is too long");
+  }
+  if (typeof whatPeopleMiss === "string" && whatPeopleMiss.length > 2000) {
+    throw new Error("What people miss is too long");
+  }
+  if (typeof realWorldExample === "string" && realWorldExample.length > 2000) {
+    throw new Error("Real-world example is too long");
   }
 
   const topic = await prisma.topic.findUnique({
@@ -53,6 +61,19 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
   }
 
   const extraUrls = parseUrls(typeof extraSourcesRaw === "string" ? extraSourcesRaw : null);
+  const cleanCoreTake = coreTake.trim();
+  const cleanWhatPeopleMiss =
+    typeof whatPeopleMiss === "string" && whatPeopleMiss.trim().length > 0 ? whatPeopleMiss.trim() : null;
+  const cleanRealWorldExample =
+    typeof realWorldExample === "string" && realWorldExample.trim().length > 0 ? realWorldExample.trim() : null;
+
+  const stitchedOpinionContent = [
+    cleanCoreTake,
+    cleanWhatPeopleMiss ? `What people miss: ${cleanWhatPeopleMiss}` : null,
+    cleanRealWorldExample ? `Example: ${cleanRealWorldExample}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   const result = await prisma.$transaction(async (tx) => {
     await tx.topic.update({
@@ -65,7 +86,10 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
       data: {
         topicId: topic.id,
         stance: typeof stance === "string" && stance.trim().length > 0 ? stance.trim() : null,
-        content: opinionContent.trim(),
+        coreTake: cleanCoreTake,
+        whatPeopleMiss: cleanWhatPeopleMiss,
+        realWorldExample: cleanRealWorldExample,
+        content: stitchedOpinionContent,
       },
       select: { id: true },
     });
@@ -93,7 +117,7 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
       whyItMatters: topic.whyItMatters,
       opinionPitch: topic.opinionPitch,
       stance: typeof stance === "string" ? stance.trim() : null,
-      opinionContent: opinionContent.trim(),
+      opinionContent: stitchedOpinionContent,
       sources: allSources,
     });
 
@@ -136,7 +160,11 @@ export async function regenerateDraft(formData: FormData) {
       whyItMatters: true,
       opinionPitch: true,
       sources: { select: { url: true, title: true, sourceType: true } },
-      opinions: { orderBy: { createdAt: "desc" }, take: 1, select: { stance: true, content: true } },
+      opinions: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { stance: true, coreTake: true, whatPeopleMiss: true, realWorldExample: true, content: true },
+      },
     },
   });
 
@@ -146,6 +174,14 @@ export async function regenerateDraft(formData: FormData) {
   }
   const latestOpinion = topic.opinions[0];
   if (!latestOpinion) throw new Error("No opinion captured yet");
+
+  const stitchedOpinionContent = [
+    latestOpinion.coreTake ?? latestOpinion.content,
+    latestOpinion.whatPeopleMiss ? `What people miss: ${latestOpinion.whatPeopleMiss}` : null,
+    latestOpinion.realWorldExample ? `Example: ${latestOpinion.realWorldExample}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   await prisma.topic.update({
     where: { id: topic.id },
@@ -165,7 +201,7 @@ export async function regenerateDraft(formData: FormData) {
     whyItMatters: topic.whyItMatters,
     opinionPitch: topic.opinionPitch,
     stance: latestOpinion.stance,
-    opinionContent: latestOpinion.content,
+    opinionContent: stitchedOpinionContent,
     sources: allSources,
   });
 
