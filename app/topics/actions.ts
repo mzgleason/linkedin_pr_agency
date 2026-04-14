@@ -259,3 +259,41 @@ export async function regenerateDraft(formData: FormData) {
   revalidatePath(`/topics/${topicId}/draft`);
   redirect(`/topics/${topicId}/draft?draftId=${encodeURIComponent(primaryDraftId)}`);
 }
+
+export async function setPrimaryDraftVersion(formData: FormData) {
+  const topicId = formData.get("topicId");
+  const draftId = formData.get("draftId");
+
+  if (typeof topicId !== "string" || topicId.length === 0) throw new Error("Missing topicId");
+  if (typeof draftId !== "string" || draftId.length === 0) throw new Error("Missing draftId");
+
+  const draft = await prisma.draft.findUnique({
+    where: { id: draftId },
+    select: { id: true, topicId: true },
+  });
+
+  if (!draft || draft.topicId !== topicId) {
+    throw new Error("Draft not found");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.draft.updateMany({
+      where: {
+        topicId,
+        id: { not: draftId },
+        status: { in: ["READY", "REVIEW", "DRAFT"] },
+      },
+      data: { status: "DRAFT" },
+    });
+
+    await tx.draft.update({
+      where: { id: draftId },
+      data: { status: "READY" },
+      select: { id: true },
+    });
+  });
+
+  revalidatePath("/topics");
+  revalidatePath(`/topics/${topicId}/draft`);
+  redirect(`/topics/${topicId}/draft?draftId=${encodeURIComponent(draftId)}`);
+}
