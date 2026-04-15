@@ -1,14 +1,21 @@
 # LinkedIn PR Agency (Local)
 
-This folder contains the local artifacts to run your LinkedIn PR workflow:
+This repo contains two eras of the workflow:
+
+1) **Next.js + Postgres web app (current direction)** - mobile-first UI to approve topics, capture opinions, iterate on drafts, and approve final posts.
+2) **Python automation (legacy)** - removed.
+
+If your goal is a phone-first approval/feedback loop, focus on the Next.js app and Prisma/Postgres.
+
+---
+
+## Legacy markdown artifacts (optional)
 
 - `truth_file.md`: Approved facts and proof points.
 - `content_calendar.md`: Month plan with exact dates.
 - `intake_answers.md`: Latest interview responses.
 - `drafts/`: Post drafts by week.
-- `automation/weekly_memory.json`: One compact entry per week (topic/project/learning).
 - `checklist.md`: QA + approval gates.
-- `gitlab_setup.md`: Always-on GitLab CI setup guide.
 
 Workflow:
 1. Update `truth_file.md` with any new approved facts.
@@ -18,15 +25,27 @@ Workflow:
 5. Publish only after explicit approval.
 6. After reminders are sent, drafts are cleaned up and a weekly memory entry is kept.
 
-Local validation:
-- Run the full mocked flow: `python automation/stage_runner.py all --use-mocks`
-- Run a single stage: `python automation/stage_runner.py interview --use-mocks`
-- Generate topic pitches: `python automation/stage_runner.py topics --use-mocks`
-
 GitLab:
-1. Follow `gitlab_setup.md` to initialize this folder as its own repository.
-2. Push to GitLab and add CI variables.
-3. Use scheduled pipelines to run orchestration and auto-commit approved draft updates.
+- CI is app-only (lint + build). Scheduled orchestrator jobs have been removed.
+
+---
+
+## Web app (Next.js + Prisma + Postgres)
+
+Run the app:
+
+```bash
+npm install
+npm run prisma:generate
+npm run prisma:migrate
+npm run dev
+```
+
+Pages:
+- Topic inbox (approve/save/reject): `/inbox`
+- Add a topic from your phone: `/topics/new`
+- Opinion capture + draft generation: `/topics` -> `Capture opinion`
+- Draft review + edits + final approval: `/topics/[topicId]/draft`
 
 ## Database (Postgres + Prisma)
 
