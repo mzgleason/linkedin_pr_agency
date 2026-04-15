@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { regenerateDraft } from "../../actions";
+import { regenerateDraft, saveDraftEdits, setDraftStatus } from "../../actions";
 import type { EvidencePack } from "@/lib/secondPassResearchEngine";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +29,7 @@ export default async function TopicDraftPage({
         where: draftId ? { id: draftId } : undefined,
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { id: true, content: true, createdAt: true },
+        select: { id: true, content: true, createdAt: true, status: true },
       },
     },
   });
@@ -64,21 +64,58 @@ export default async function TopicDraftPage({
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div className="text-xs text-neutral-500">
-              Generated {new Date(draft.createdAt).toLocaleString()}
+              {draft.status.toLowerCase()} - {new Date(draft.createdAt).toLocaleString()}
             </div>
-            <form action={regenerateDraft}>
-              <input type="hidden" name="topicId" value={topic.id} />
-              <button
-                type="submit"
-                className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-800 hover:bg-neutral-50"
-              >
-                Regenerate
-              </button>
-            </form>
+            <div className="flex items-center gap-2">
+              <form action={regenerateDraft}>
+                <input type="hidden" name="topicId" value={topic.id} />
+                <button
+                  type="submit"
+                  className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-800 hover:bg-neutral-50"
+                >
+                  Regenerate
+                </button>
+              </form>
+              <form action={setDraftStatus}>
+                <input type="hidden" name="topicId" value={topic.id} />
+                <input type="hidden" name="draftId" value={draft.id} />
+                <input type="hidden" name="status" value="READY" />
+                <button
+                  type="submit"
+                  className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                >
+                  Approve final
+                </button>
+              </form>
+            </div>
           </div>
           <pre className="whitespace-pre-wrap rounded-2xl border border-neutral-200 bg-white p-4 text-sm leading-6 text-neutral-900 shadow-sm">
             {draft.content}
           </pre>
+
+          <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+            <div className="text-sm font-semibold">Feedback / edits</div>
+            <p className="mt-1 text-xs text-neutral-500">
+              Paste your revised version (or edit directly). Saving creates a new draft revision.
+            </p>
+            <form action={saveDraftEdits} className="mt-3 space-y-3">
+              <input type="hidden" name="topicId" value={topic.id} />
+              <input type="hidden" name="draftId" value={draft.id} />
+              <textarea
+                name="content"
+                defaultValue={draft.content}
+                className="min-h-64 w-full resize-y rounded-xl border border-neutral-200 px-3 py-2 text-sm leading-6 outline-none focus:border-neutral-400"
+                required
+              />
+              <button
+                type="submit"
+                className="w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-semibold text-white hover:bg-neutral-800"
+              >
+                Save revision
+              </button>
+            </form>
+          </div>
+
           {latestResearch ? (
             <div className="rounded-2xl border border-neutral-200 bg-white p-4 text-sm text-neutral-900 shadow-sm">
               <div className="flex items-center justify-between gap-3">

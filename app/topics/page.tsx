@@ -35,7 +35,7 @@ export default async function TopicsPage({ searchParams }: TopicsPageProps) {
       createdAt: true,
       status: true,
       opinions: { select: { id: true }, take: 1, orderBy: { createdAt: "desc" } },
-      drafts: { select: { id: true, createdAt: true }, take: 1, orderBy: { createdAt: "desc" } },
+      drafts: { select: { id: true, createdAt: true, status: true }, take: 1, orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -110,7 +110,9 @@ export default async function TopicsPage({ searchParams }: TopicsPageProps) {
                   </div>
                   <div className="rounded-full bg-neutral-100 px-2 py-1">
                     Draft:{" "}
-                    {hasDraft ? new Date(topic.drafts[0]!.createdAt).toLocaleDateString() : "Missing"}
+                    {hasDraft
+                      ? `${topic.drafts[0]!.status.toLowerCase()} Â· ${new Date(topic.drafts[0]!.createdAt).toLocaleDateString()}`
+                      : "Missing"}
                   </div>
                 </div>
               </div>

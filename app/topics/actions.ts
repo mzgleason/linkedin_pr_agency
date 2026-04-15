@@ -5,6 +5,7 @@ import { generateLinkedInDraft } from "@/lib/draftGenerator";
 import { generateEvidencePack } from "@/lib/secondPassResearchEngine";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { DraftStatus } from "@prisma/client";
 
 function parseUrls(raw: string | null) {
   if (!raw) return [];
@@ -19,6 +20,51 @@ function parseUrls(raw: string | null) {
     if (match) urls.push(match[0]);
   }
   return Array.from(new Set(urls)).slice(0, 10);
+}
+
+function formString(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : null;
+}
+
+function optionalTrimmed(value: string | null, maxLen: number) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  if (trimmed.length > maxLen) throw new Error(`${maxLen} character limit exceeded`);
+  return trimmed;
+}
+
+export async function createTopic(formData: FormData) {
+  const title = formString(formData, "title");
+  if (!title || title.trim().length < 6) throw new Error("Title is required (min 6 characters)");
+
+  const summary = optionalTrimmed(formString(formData, "summary"), 2000);
+  const opinionPitch = optionalTrimmed(formString(formData, "opinionPitch"), 2000);
+  const whyItMatters = optionalTrimmed(formString(formData, "whyItMatters"), 2000);
+  const sources = parseUrls(formString(formData, "sources"));
+
+  await prisma.topic.create({
+    data: {
+      title: title.trim(),
+      summary,
+      opinionPitch,
+      whyItMatters,
+      status: "NEW",
+      sources: sources.length
+        ? {
+            createMany: {
+              data: sources.map((url) => ({ url, sourceType: "user" as const })),
+              skipDuplicates: true,
+            },
+          }
+        : undefined,
+    },
+  });
+
+  revalidatePath("/inbox");
+  revalidatePath("/topics");
+  redirect("/inbox");
 }
 
 export async function captureOpinionAndGenerateDraft(formData: FormData) {
@@ -234,4 +280,54 @@ export async function regenerateDraft(formData: FormData) {
 
   revalidatePath(`/topics/${topicId}/draft`);
   redirect(`/topics/${topicId}/draft?draftId=${encodeURIComponent(draft.id)}`);
+}
+
+export async function saveDraftEdits(formData: FormData) {
+  const topicId = formData.get("topicId");
+  const sourceDraftId = formData.get("draftId");
+  const content = formData.get("content");
+
+  if (typeof topicId !== "string" || topicId.length === 0) throw new Error("Missing topicId");
+  if (typeof content !== "string" || content.trim().length < 20) {
+    throw new Error("Draft content must be at least 20 characters");
+  }
+  if (content.length > 50_000) throw new Error("Draft content is too long");
+
+  const next = await prisma.draft.create({
+    data: {
+      topicId,
+      content: content.trim(),
+      status: "REVIEW",
+    },
+    select: { id: true },
+  });
+
+  if (typeof sourceDraftId === "string" && sourceDraftId.length > 0) {
+    await prisma.draft.updateMany({
+      where: { id: sourceDraftId, topicId, status: { in: ["DRAFT", "REVIEW"] as DraftStatus[] } },
+      data: { status: "ARCHIVED" },
+    });
+  }
+
+  revalidatePath(`/topics/${topicId}/draft`);
+  redirect(`/topics/${topicId}/draft?draftId=${encodeURIComponent(next.id)}`);
+}
+
+export async function setDraftStatus(formData: FormData) {
+  const draftId = formData.get("draftId");
+  const topicId = formData.get("topicId");
+  const status = formData.get("status");
+
+  if (typeof draftId !== "string" || draftId.length === 0) throw new Error("Missing draftId");
+  if (typeof topicId !== "string" || topicId.length === 0) throw new Error("Missing topicId");
+  if (status !== "READY" && status !== "PUBLISHED" && status !== "ARCHIVED") throw new Error("Invalid status");
+
+  await prisma.draft.updateMany({
+    where: { id: draftId, topicId },
+    data: { status },
+  });
+
+  revalidatePath(`/topics/${topicId}/draft`);
+  revalidatePath("/topics");
+  redirect(`/topics/${topicId}/draft?draftId=${encodeURIComponent(draftId)}`);
 }
