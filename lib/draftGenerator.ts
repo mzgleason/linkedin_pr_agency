@@ -10,6 +10,59 @@ type DraftInput = {
   sources: Array<Pick<TopicSource, "url" | "title" | "sourceType">>;
 };
 
+export type DraftVariant = {
+  key: string;
+  label: string;
+  content: string;
+};
+
+type VariantTone = {
+  key: string;
+  label: string;
+  evidencePrompts: string[];
+  operatorInsight: string;
+  ending: string;
+};
+
+const VARIANT_TONES: VariantTone[] = [
+  {
+    key: "operator-brief",
+    label: "Operator brief",
+    evidencePrompts: [
+      "- Which assumption breaks first when usage grows?",
+      "- What metric improves only after behavior changes?",
+      "- Where are teams paying invisible operational tax?",
+    ],
+    operatorInsight:
+      "Operator insight: optimize for repeatability, not novelty. If a workflow can survive handoffs, it can survive scale.",
+    ending: "If you run this inside a team, what operational constraint shows up first?",
+  },
+  {
+    key: "contrarian-take",
+    label: "Contrarian take",
+    evidencePrompts: [
+      "- Which popular claim ignores implementation costs?",
+      "- What tradeoff gets hidden in the success stories?",
+      "- What happens if this trend compounds for 12 months?",
+    ],
+    operatorInsight:
+      "Operator insight: contrarian does not mean cynical. It means tracing second-order effects before making a public bet.",
+    ending: "What part of this narrative feels most overrated from your seat?",
+  },
+  {
+    key: "story-forward",
+    label: "Story forward",
+    evidencePrompts: [
+      "- What happened in the first real deployment?",
+      "- Where did the process bend instead of break?",
+      "- Which decision unlocked momentum?",
+    ],
+    operatorInsight:
+      "Operator insight: stories make systems memorable. If people can retell the sequence, they can repeat the playbook.",
+    ending: "Have you seen a moment where a small workflow decision changed the outcome?",
+  },
+];
+
 function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -47,7 +100,7 @@ function formatSources(
   return { citationsInline, sourcesList };
 }
 
-export function generateLinkedInDraft(input: DraftInput) {
+function buildDraftContent(input: DraftInput, tone: VariantTone) {
   const hook = makeHook(input.topicTitle, input.stance, input.opinionContent);
   const framing =
     input.whyItMatters?.trim() ||
@@ -63,17 +116,13 @@ export function generateLinkedInDraft(input: DraftInput) {
   } else {
     evidenceLines.push("A few quick anchors to sanity-check the take:");
   }
-  evidenceLines.push("- What changed recently?");
-  evidenceLines.push("- What stays true across cycles?");
-  evidenceLines.push("- Where does the narrative break in practice?");
-
-  const operatorInsight = `Operator insight: the goal isn’t to be “right” on the internet — it’s to make the next decision cheaper.\n\nIf you can name the tradeoff, you can design the system.`;
-
-  const ending = `If you’re building in this space, what’s the one constraint you wish more people understood?`;
+  evidenceLines.push(...tone.evidencePrompts);
 
   const opinionBlock = normalizeWhitespace(input.opinionContent);
 
   const sections = [
+    `Version: ${tone.label}`,
+    "",
     hook,
     "",
     framing,
@@ -84,10 +133,10 @@ export function generateLinkedInDraft(input: DraftInput) {
     evidenceLines.join("\n"),
     "",
     "Operator insight",
-    operatorInsight,
+    tone.operatorInsight,
     "",
     "Ending",
-    ending,
+    tone.ending,
     "",
     "My take",
     opinionBlock,
@@ -98,4 +147,12 @@ export function generateLinkedInDraft(input: DraftInput) {
   }
 
   return sections.join("\n");
+}
+
+export function generateLinkedInDraftVariants(input: DraftInput): DraftVariant[] {
+  return VARIANT_TONES.map((tone) => ({
+    key: tone.key,
+    label: tone.label,
+    content: buildDraftContent(input, tone),
+  }));
 }
