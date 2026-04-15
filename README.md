@@ -32,12 +32,39 @@ GitLab:
 
 ## Web app (Next.js + Prisma + Postgres)
 
-Run the app:
+### Startup (Windows / Docker Desktop)
+
+1) Start Docker Desktop
+- Open Docker Desktop and wait for **Engine running**.
+
+2) Start Postgres
+
+```bash
+docker compose up -d
+docker compose ps
+```
+
+3) Create `.env`
+- Copy `.env.example` to `.env` (default `DATABASE_URL` points at the docker Postgres on `localhost:5432`).
+
+4) Install deps + run migrations
 
 ```bash
 npm install
-npm run prisma:generate
 npm run prisma:migrate
+```
+
+5) Run the app
+
+```bash
+npm run dev
+```
+
+Open:
+- App: `http://localhost:3000`
+- DB health: `http://localhost:3000/api/health/db` (should return `{ "ok": true, "db": "up" }`)
+
+```bash
 npm run dev
 ```
 
@@ -65,6 +92,13 @@ npm run prisma:migrate
 ```
 
 Health check: `GET /api/health/db`
+
+## Troubleshooting
+
+- Docker error like `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`
+  - Docker Desktop engine isn’t running yet. Start Docker Desktop and retry `docker compose up -d`.
+- Opinion capture validation error “Core take must be at least 20 characters”
+  - The Core take field is required and must be 20+ characters.
 
 ## Evidence Pack (Second Pass Research)
 
