@@ -225,6 +225,28 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
   redirect(`/topics/${topicId}/draft?draftId=${encodeURIComponent(primaryDraftId)}`);
 }
 
+type ActionState = { error: string | null };
+
+export async function captureOpinionAndGenerateDraftAction(
+  prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  try {
+    await captureOpinionAndGenerateDraft(formData);
+    return { error: null };
+  } catch (error) {
+    const digest =
+      typeof error === "object" && error !== null && "digest" in error
+        ? (error as Record<string, unknown>).digest
+        : null;
+    if (typeof digest === "string" && (digest.startsWith("NEXT_REDIRECT") || digest.startsWith("NEXT_NOT_FOUND"))) {
+      throw error;
+    }
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return { error: message || prevState.error };
+  }
+}
+
 export async function regenerateDraft(formData: FormData) {
   const topicId = formData.get("topicId");
 

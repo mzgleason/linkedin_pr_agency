@@ -1,4 +1,4 @@
-﻿-- MZG-35 Opinion fast capture fields
+-- MZG-35 Opinion fast capture fields
 
 ALTER TABLE "Opinion" ADD COLUMN IF NOT EXISTS "coreTake" TEXT;
 ALTER TABLE "Opinion" ADD COLUMN IF NOT EXISTS "whatPeopleMiss" TEXT;
