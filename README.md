@@ -46,6 +46,7 @@ docker compose ps
 
 3) Create `.env`
 - Copy `.env.example` to `.env` (default `DATABASE_URL` points at the docker Postgres on `localhost:5432`).
+- Optional: set `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`) to enable AI-generated take suggestions + drafts.
 
 4) Install deps + run migrations
 

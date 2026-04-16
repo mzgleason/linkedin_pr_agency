@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { generateLinkedInDraftVariants } from "@/lib/draftGenerator";
 import { generateEvidencePack } from "@/lib/secondPassResearchEngine";
+import { generateDraftVariantsAI, generateTakeSuggestionsAI } from "@/lib/aiLinkedInWriter";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { DraftStatus } from "@prisma/client";
@@ -73,6 +74,7 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
   const coreTake = formData.get("coreTake");
   const whatPeopleMiss = formData.get("whatPeopleMiss");
   const realWorldExample = formData.get("realWorldExample");
+  const selectedTakeRaw = formData.get("selectedTake");
   const extraSourcesRaw = formData.get("extraSources");
 
   if (typeof topicId !== "string" || topicId.length === 0) throw new Error("Missing topicId");
@@ -115,6 +117,7 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
     typeof realWorldExample === "string" && realWorldExample.trim().length > 0 ? realWorldExample.trim() : null;
 
   const stitchedOpinionContent = [
+    typeof selectedTakeRaw === "string" && selectedTakeRaw.trim().length > 0 ? `Selected take: ${selectedTakeRaw.trim()}` : null,
     cleanCoreTake,
     cleanWhatPeopleMiss ? `What people miss: ${cleanWhatPeopleMiss}` : null,
     cleanRealWorldExample ? `Example: ${cleanRealWorldExample}` : null,
@@ -158,15 +161,45 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
       orderBy: { createdAt: "asc" },
     });
 
-    const draftVariants = generateLinkedInDraftVariants({
+    const cleanStance = typeof stance === "string" && stance.trim().length > 0 ? stance.trim() : null;
+
+    let draftVariants = generateLinkedInDraftVariants({
       topicTitle: topic.title,
       topicSummary: topic.summary,
       whyItMatters: topic.whyItMatters,
       opinionPitch: topic.opinionPitch,
-      stance: typeof stance === "string" ? stance.trim() : null,
+      stance: cleanStance,
       opinionContent: stitchedOpinionContent,
       sources: allSources,
     });
+
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        const parsedSelected =
+          typeof selectedTakeRaw === "string" && selectedTakeRaw.trim().length > 0
+            ? (() => {
+                try {
+                  return JSON.parse(selectedTakeRaw) as { title?: string; oneLiner?: string };
+                } catch {
+                  return { title: selectedTakeRaw.trim(), oneLiner: null };
+                }
+              })()
+            : null;
+
+        draftVariants = await generateDraftVariantsAI({
+          topicTitle: topic.title,
+          topicSummary: topic.summary,
+          whyItMatters: topic.whyItMatters,
+          opinionPitch: topic.opinionPitch,
+          selectedTakeTitle: parsedSelected?.title ?? null,
+          selectedTakeOneLiner: (parsedSelected as { oneLiner?: string } | null)?.oneLiner ?? null,
+          personalAngle: stitchedOpinionContent,
+          sources: allSources,
+        });
+      } catch {
+        // Fall back to deterministic generator.
+      }
+    }
 
     const createdDrafts = [];
     for (const variant of draftVariants) {
@@ -326,6 +359,80 @@ export async function regenerateDraft(formData: FormData) {
 
   revalidatePath(`/topics/${topicId}/draft`);
   redirect(`/topics/${topicId}/draft?draftId=${encodeURIComponent(primaryDraftId)}`);
+}
+
+export async function generateTakeSuggestions(formData: FormData) {
+  const topicId = formData.get("topicId");
+  if (typeof topicId !== "string" || topicId.length === 0) throw new Error("Missing topicId");
+
+  const topic = await prisma.topic.findUnique({
+    where: { id: topicId },
+    select: {
+      id: true,
+      title: true,
+      summary: true,
+      whyItMatters: true,
+      opinionPitch: true,
+      sources: { select: { url: true, title: true, sourceType: true }, orderBy: { createdAt: "asc" }, take: 12 },
+    },
+  });
+  if (!topic) throw new Error("Topic not found");
+
+  let takes: Array<{ title: string; oneLiner: string; stance?: string | null }> = [];
+
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      takes = await generateTakeSuggestionsAI({
+        topicTitle: topic.title,
+        topicSummary: topic.summary,
+        whyItMatters: topic.whyItMatters,
+        opinionPitch: topic.opinionPitch,
+        sources: topic.sources,
+        count: 5,
+      });
+    } catch {
+      takes = [];
+    }
+  }
+
+  if (takes.length === 0) {
+    takes = [
+      {
+        title: `Most advice about “${topic.title}” ignores the operational tax`,
+        oneLiner: "The hard part isn’t the idea—it’s the handoffs, edge cases, and measurement that show up after week 2.",
+      },
+      {
+        title: `The “best practice” on ${topic.title} is context-dependent`,
+        oneLiner: "The same playbook produces opposite outcomes depending on incentives, constraints, and who owns the outcome.",
+      },
+      {
+        title: `What people get wrong about ${topic.title}`,
+        oneLiner: "They optimize for novelty and narratives instead of repeatable workflows and second-order effects.",
+      },
+      {
+        title: `A small change beats a big rewrite for ${topic.title}`,
+        oneLiner: "One constraint-driven tweak often outperforms sweeping initiatives because adoption actually happens.",
+      },
+      {
+        title: `The real tradeoff behind ${topic.title}`,
+        oneLiner: "You can usually have speed, quality, or cost—pick two—and say explicitly which one you’re paying for.",
+      },
+    ];
+  }
+
+  await prisma.researchRun.create({
+    data: {
+      topicId: topic.id,
+      status: "SUCCEEDED",
+      input: { kind: "TAKES" },
+      output: { kind: "TAKES", topicTitle: topic.title, takes },
+      finishedAt: new Date(),
+    },
+    select: { id: true },
+  });
+
+  revalidatePath(`/topics/${topicId}/opinion`);
+  redirect(`/topics/${topicId}/opinion`);
 }
 
 export async function setPrimaryDraftVersion(formData: FormData) {
