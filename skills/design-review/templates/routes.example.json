@@ -1,0 +1,12 @@
+{
+  "viewports": [
+    { "name": "desktop", "width": 1440, "height": 900 },
+    { "name": "mobile", "width": 390, "height": 844, "isMobile": true, "hasTouch": true }
+  ],
+  "storageState": "artifacts/design-review/auth.storageState.json",
+  "routes": [
+    { "name": "home", "path": "/", "prep": "scroll" },
+    { "name": "login", "path": "/login", "fullPage": true }
+  ]
+}
+
