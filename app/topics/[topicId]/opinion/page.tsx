@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth";
 import { OpinionForm } from "./OpinionForm";
 import { generateTakeSuggestions } from "../../actions";
 
@@ -10,9 +11,10 @@ export default async function TopicOpinionPage({
   params: Promise<{ topicId: string }>;
 }) {
   const { topicId } = await params;
+  const { userId } = await requireSession();
 
-  const topic = await prisma.topic.findUnique({
-    where: { id: topicId },
+  const topic = await prisma.topic.findFirst({
+    where: { id: topicId, userId },
     select: {
       id: true,
       title: true,

@@ -7,8 +7,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  passwordHash     String
+  stripeCustomerId String?
+  stripeSubStatus  String?
+  stripePriceId    String?
+  plan             String   @default("free")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  topics       Topic[]
+  opinions     Opinion[]
+  drafts       Draft[]
+  researchRuns ResearchRun[]
+  aiActionLogs AiActionLog[]
+}
+
 model Topic {
   id          String        @id @default(uuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   title       String
   summary     String?
   status      TopicStatus @default(NEW)
@@ -20,6 +40,8 @@ model Topic {
   opinions    Opinion[]
   drafts      Draft[]
   researchRun ResearchRun[]
+
+  @@index([userId])
 }
 
 enum TopicStatus {
@@ -48,6 +70,8 @@ model Opinion {
   id        String   @id @default(uuid())
   topicId   String
   topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   stance    String?
   coreTake  String
   whatPeopleMiss String?
@@ -56,12 +80,15 @@ model Opinion {
   createdAt DateTime @default(now())
 
   @@index([topicId])
+  @@index([userId])
 }
 
 model Draft {
   id           String      @id @default(uuid())
   topicId      String
   topic        Topic       @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   status       DraftStatus @default(DRAFT)
   versionKey   String?
   versionLabel String?
@@ -70,6 +97,7 @@ model Draft {
   updatedAt    DateTime    @updatedAt
 
   @@index([topicId])
+  @@index([userId])
 }
 
 enum DraftStatus {
@@ -84,6 +112,8 @@ model ResearchRun {
   id         String            @id @default(uuid())
   topicId    String?
   topic      Topic?            @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   status     ResearchRunStatus @default(STARTED)
   input      Json?
   output     Json?
@@ -92,10 +122,24 @@ model ResearchRun {
   createdAt  DateTime          @default(now())
 
   @@index([topicId])
+  @@index([userId])
 }
 
 enum ResearchRunStatus {
   STARTED
   SUCCEEDED
   FAILED
+}
+
+model AiActionLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  topicId   String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
 }

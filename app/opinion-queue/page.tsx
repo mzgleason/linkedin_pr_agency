@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function OpinionQueuePage() {
   const topicsNeedingOpinion = await prisma.topic.findMany({
-    where: { status: "APPROVED", opinions: { none: {} } },
+    where: { status: "APPROVED", opinions: { none: {} }, userId: (await requireSession()).userId },
     orderBy: { createdAt: "desc" },
     select: { id: true, title: true, createdAt: true, opinionPitch: true, whyItMatters: true, summary: true },
   });

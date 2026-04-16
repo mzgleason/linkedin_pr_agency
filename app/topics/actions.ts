@@ -1,10 +1,12 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth";
 import { generateLinkedInDraftVariants } from "@/lib/draftGenerator";
 import { generateEvidencePack } from "@/lib/secondPassResearchEngine";
 import { generateDraftVariantsAI, generateTakeSuggestionsAI } from "@/lib/aiLinkedInWriter";
 import { generateTrendingTopicsAI } from "@/lib/topicGenerator";
+import { assertWithinLimits, logAiAction } from "@/lib/limits";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { DraftStatus } from "@prisma/client";
@@ -38,6 +40,7 @@ function optionalTrimmed(value: string | null, maxLen: number) {
 }
 
 export async function createTopic(formData: FormData) {
+  const { userId } = await requireSession();
   const title = formString(formData, "title");
   if (!title || title.trim().length < 6) throw new Error("Title is required (min 6 characters)");
 
@@ -48,6 +51,7 @@ export async function createTopic(formData: FormData) {
 
   await prisma.topic.create({
     data: {
+      userId,
       title: title.trim(),
       summary,
       opinionPitch,
@@ -72,10 +76,12 @@ export async function createTopic(formData: FormData) {
 export type GenerateTopicsResult = { ok: true } | { ok: false; error: string };
 
 export async function generateTopics(): Promise<GenerateTopicsResult> {
+  const { userId } = await requireSession();
   if (!process.env.OPENAI_API_KEY) {
     return { ok: false, error: "Missing OPENAI_API_KEY. Add it to .env to enable AI topic generation." };
   }
 
+  await assertWithinLimits(userId, "generate_topics");
   const topics = await generateTrendingTopicsAI({ count: 5 });
 
   try {
@@ -83,6 +89,7 @@ export async function generateTopics(): Promise<GenerateTopicsResult> {
       for (const topic of topics) {
         await tx.topic.create({
           data: {
+            userId,
             title: topic.title,
             summary: topic.summary,
             opinionPitch: topic.opinionPitch,
@@ -107,10 +114,12 @@ export async function generateTopics(): Promise<GenerateTopicsResult> {
 
   revalidatePath("/inbox");
   revalidatePath("/topics");
+  await logAiAction(userId, "generate_topics", undefined, { count: topics.length });
   redirect("/inbox");
 }
 
 export async function captureOpinionAndGenerateDraft(formData: FormData) {
+  const { userId } = await requireSession();
   const topicId = formData.get("topicId");
   const stance = formData.get("stance");
   const coreTake = formData.get("coreTake");
@@ -133,8 +142,11 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
     throw new Error("Real-world example is too long");
   }
 
-  const topic = await prisma.topic.findUnique({
-    where: { id: topicId },
+  await assertWithinLimits(userId, "generate_drafts");
+  await assertWithinLimits(userId, "generate_evidence_pack");
+
+  const topic = await prisma.topic.findFirst({
+    where: { id: topicId, userId },
     select: {
       id: true,
       title: true,
@@ -176,6 +188,7 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
 
     const opinion = await tx.opinion.create({
       data: {
+        userId,
         topicId: topic.id,
         stance: typeof stance === "string" && stance.trim().length > 0 ? stance.trim() : null,
         coreTake: cleanCoreTake,
@@ -238,6 +251,7 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
           personalAngle: stitchedOpinionContent,
           sources: allSources,
         });
+        await logAiAction(userId, "generate_drafts", topic.id, { kind: "draft_variants_ai", count: draftVariants.length });
       } catch {
         // Fall back to deterministic generator.
       }
@@ -247,6 +261,7 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
     for (const variant of draftVariants) {
       const draft = await tx.draft.create({
         data: {
+          userId,
           topicId: topic.id,
           content: variant.content,
           versionKey: variant.key,
@@ -270,6 +285,7 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
 
     await prisma.researchRun.create({
       data: {
+        userId,
         topicId: topic.id,
         status: "SUCCEEDED",
         input: { opinionId: result.opinionId, extraUrls },
@@ -278,10 +294,13 @@ export async function captureOpinionAndGenerateDraft(formData: FormData) {
       },
       select: { id: true },
     });
+
+    await logAiAction(userId, "generate_evidence_pack", topic.id);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     await prisma.researchRun.create({
       data: {
+        userId,
         topicId: topic.id,
         status: "FAILED",
         input: { opinionId: result.opinionId, extraUrls },
@@ -323,12 +342,13 @@ export async function captureOpinionAndGenerateDraftAction(
 }
 
 export async function regenerateDraft(formData: FormData) {
+  const { userId } = await requireSession();
   const topicId = formData.get("topicId");
 
   if (typeof topicId !== "string" || topicId.length === 0) throw new Error("Missing topicId");
 
-  const topic = await prisma.topic.findUnique({
-    where: { id: topicId },
+  const topic = await prisma.topic.findFirst({
+    where: { id: topicId, userId },
     select: {
       id: true,
       title: true,
@@ -386,6 +406,7 @@ export async function regenerateDraft(formData: FormData) {
   for (const variant of draftVariants) {
     const draft = await prisma.draft.create({
       data: {
+        userId,
         topicId: topic.id,
         content: variant.content,
         versionKey: variant.key,
@@ -404,11 +425,12 @@ export async function regenerateDraft(formData: FormData) {
 }
 
 export async function generateTakeSuggestions(formData: FormData) {
+  const { userId } = await requireSession();
   const topicId = formData.get("topicId");
   if (typeof topicId !== "string" || topicId.length === 0) throw new Error("Missing topicId");
 
-  const topic = await prisma.topic.findUnique({
-    where: { id: topicId },
+  const topic = await prisma.topic.findFirst({
+    where: { id: topicId, userId },
     select: {
       id: true,
       title: true,
@@ -424,6 +446,7 @@ export async function generateTakeSuggestions(formData: FormData) {
 
   if (process.env.OPENAI_API_KEY) {
     try {
+      await assertWithinLimits(userId, "generate_takes");
       takes = await generateTakeSuggestionsAI({
         topicTitle: topic.title,
         topicSummary: topic.summary,
@@ -432,6 +455,7 @@ export async function generateTakeSuggestions(formData: FormData) {
         sources: topic.sources,
         count: 5,
       });
+      await logAiAction(userId, "generate_takes", topic.id, { count: takes.length });
     } catch {
       takes = [];
     }
@@ -464,6 +488,7 @@ export async function generateTakeSuggestions(formData: FormData) {
 
   await prisma.researchRun.create({
     data: {
+      userId,
       topicId: topic.id,
       status: "SUCCEEDED",
       input: { kind: "TAKES" },
@@ -478,14 +503,15 @@ export async function generateTakeSuggestions(formData: FormData) {
 }
 
 export async function setPrimaryDraftVersion(formData: FormData) {
+  const { userId } = await requireSession();
   const topicId = formData.get("topicId");
   const draftId = formData.get("draftId");
 
   if (typeof topicId !== "string" || topicId.length === 0) throw new Error("Missing topicId");
   if (typeof draftId !== "string" || draftId.length === 0) throw new Error("Missing draftId");
 
-  const draft = await prisma.draft.findUnique({
-    where: { id: draftId },
+  const draft = await prisma.draft.findFirst({
+    where: { id: draftId, userId },
     select: { id: true, topicId: true },
   });
 
@@ -496,6 +522,7 @@ export async function setPrimaryDraftVersion(formData: FormData) {
   await prisma.$transaction(async (tx) => {
     await tx.draft.updateMany({
       where: {
+        userId,
         topicId,
         id: { not: draftId },
         status: { in: ["READY", "REVIEW", "DRAFT"] },
@@ -516,6 +543,7 @@ export async function setPrimaryDraftVersion(formData: FormData) {
 }
 
 export async function saveDraftEdits(formData: FormData) {
+  const { userId } = await requireSession();
   const topicId = formData.get("topicId");
   const sourceDraftId = formData.get("draftId");
   const content = formData.get("content");
@@ -528,6 +556,7 @@ export async function saveDraftEdits(formData: FormData) {
 
   const next = await prisma.draft.create({
     data: {
+      userId,
       topicId,
       content: content.trim(),
       status: "REVIEW",
@@ -537,7 +566,7 @@ export async function saveDraftEdits(formData: FormData) {
 
   if (typeof sourceDraftId === "string" && sourceDraftId.length > 0) {
     await prisma.draft.updateMany({
-      where: { id: sourceDraftId, topicId, status: { in: ["DRAFT", "REVIEW"] as DraftStatus[] } },
+      where: { id: sourceDraftId, topicId, userId, status: { in: ["DRAFT", "REVIEW"] as DraftStatus[] } },
       data: { status: "ARCHIVED" },
     });
   }
@@ -547,6 +576,7 @@ export async function saveDraftEdits(formData: FormData) {
 }
 
 export async function setDraftStatus(formData: FormData) {
+  const { userId } = await requireSession();
   const draftId = formData.get("draftId");
   const topicId = formData.get("topicId");
   const status = formData.get("status");
@@ -556,7 +586,7 @@ export async function setDraftStatus(formData: FormData) {
   if (status !== "READY" && status !== "PUBLISHED" && status !== "ARCHIVED") throw new Error("Invalid status");
 
   await prisma.draft.updateMany({
-    where: { id: draftId, topicId },
+    where: { id: draftId, topicId, userId },
     data: { status },
   });
 

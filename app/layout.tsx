@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getSession } from "@/lib/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,7 +8,8 @@ export const metadata: Metadata = {
   description: "Content ops + PR agency workflow"
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const session = await getSession();
   return (
     <html lang="en">
       <body className="min-h-dvh bg-white text-neutral-900 antialiased">
@@ -17,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="text-sm font-semibold tracking-tight">LinkedIn PR Agency</div>
               <div className="text-xs text-neutral-500">Mobile-first scaffold</div>
             </div>
-            <nav className="flex shrink-0 items-center gap-3 text-sm">
+            <nav className="flex shrink-0 flex-wrap items-center justify-end gap-3 text-sm">
               <Link className="text-neutral-600 hover:text-neutral-900" href="/">
                 Home
               </Link>
@@ -39,11 +41,35 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link className="text-neutral-600 hover:text-neutral-900" href="/api/health">
                 Health
               </Link>
+              {session ? (
+                <form action="/api/auth/logout" method="post">
+                  <button className="text-neutral-600 hover:text-neutral-900" type="submit">
+                    Logout ({session.email})
+                  </button>
+                </form>
+              ) : (
+                <Link className="text-neutral-600 hover:text-neutral-900" href="/login">
+                  Login
+                </Link>
+              )}
             </nav>
           </header>
           <main className="flex-1 py-6">{children}</main>
           <footer className="border-t border-neutral-200 pt-4 text-xs text-neutral-500">
-            Built on Next.js + Tailwind
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>Built on Next.js + Tailwind</div>
+              <div className="flex items-center gap-3">
+                <Link className="hover:text-neutral-800" href="/privacy">
+                  Privacy
+                </Link>
+                <Link className="hover:text-neutral-800" href="/terms">
+                  Terms
+                </Link>
+                <Link className="hover:text-neutral-800" href="/account">
+                  Account
+                </Link>
+              </div>
+            </div>
           </footer>
         </div>
       </body>

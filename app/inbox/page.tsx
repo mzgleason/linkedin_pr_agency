@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth";
 import InboxTopicList from "./topic-list";
 
 export const dynamic = "force-dynamic";
 
 export default async function TopicInboxPage() {
+  const { userId } = await requireSession();
   const topics = await prisma.topic.findMany({
-    where: { status: "NEW" },
+    where: { status: "NEW", userId },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -47,4 +49,3 @@ export default async function TopicInboxPage() {
     </div>
   );
 }
-
