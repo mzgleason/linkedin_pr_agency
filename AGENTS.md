@@ -38,3 +38,12 @@ Notes:
 - Prefer small UI improvements + Prisma migrations over large refactors.
 - Never hardcode secrets; use `.env` and update `.env.example` when adding new required vars.
 
+## Linear defaults (public SaaS)
+When creating/triaging Linear issues for this repo, use:
+- Team: `Mzg-product-playbooks` (key: `MZG`)
+- Project: `linkedin_pr_agency` (slug: `linkedin-pr-agency-27a0d97d0cf3`)
+- Assignee: unassigned
+- Location: backlog (no cycle)
+- Suggested labels: `security`, `infra`, `billing`, `reliability`, `product`
+
+Prefer the repo skill `skills/linear-defaults/SKILL.md` as the single source of truth for these defaults.

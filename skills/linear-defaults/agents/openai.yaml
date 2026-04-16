@@ -1,0 +1,6 @@
+version: "1.0"
+skill:
+  display_name: "Linear Defaults (linkedin_pr_agency)"
+  short_description: "Pre-fills Linear workspace/team/project + backlog/unassigned defaults for this repo."
+  default_prompt: "Create/update Linear issues for this repo using the predefined defaults (project `linkedin_pr_agency`, team `MZG`, unassigned, backlog) and suggested labels."
+
