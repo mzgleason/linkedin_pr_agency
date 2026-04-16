@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth";
 import { TopicStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -18,13 +19,14 @@ function coerceStatus(raw: string | undefined): AllowedStatus | null {
 }
 
 export default async function TopicsPage({ searchParams }: TopicsPageProps) {
+  const { userId } = await requireSession();
   const params = (await searchParams) ?? {};
   const status = coerceStatus(params.status);
 
   const where =
     status === null
-      ? { status: { in: ["APPROVED", "IN_PROGRESS"] as TopicStatus[] } }
-      : { status };
+      ? { status: { in: ["APPROVED", "IN_PROGRESS"] as TopicStatus[] }, userId }
+      : { status, userId };
 
   const topics = await prisma.topic.findMany({
     where,

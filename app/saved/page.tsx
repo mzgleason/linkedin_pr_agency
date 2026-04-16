@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth";
 import SavedTopicList from "./topic-list";
 
 export const dynamic = "force-dynamic";
 
 export default async function SavedTopicsPage() {
+  const { userId } = await requireSession();
   const topics = await prisma.topic.findMany({
-    where: { status: "SAVED" },
+    where: { status: "SAVED", userId },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,

@@ -47,6 +47,7 @@ docker compose ps
 3) Create `.env`
 - Copy `.env.example` to `.env` (default `DATABASE_URL` points at the docker Postgres on `localhost:5432`).
 - Optional: set `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`) to enable AI-generated take suggestions + drafts.
+- Required: set `SESSION_SECRET` (any long random string) for login sessions.
 
 4) Install deps + run migrations
 
@@ -74,6 +75,12 @@ Pages:
 - Add a topic from your phone: `/topics/new`
 - Opinion capture + draft generation: `/topics` -> `Capture opinion`
 - Draft review + edits + final approval: `/topics/[topicId]/draft`
+- Account + billing: `/account`
+- Privacy/Terms: `/privacy`, `/terms`
+
+## Production baseline
+
+See `docs/deploy.md` for MVP guidance on environments, migrations, and backups.
 
 ## Database (Postgres + Prisma)
 

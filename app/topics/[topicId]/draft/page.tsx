@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth";
 import { regenerateDraft, saveDraftEdits, setDraftStatus, setPrimaryDraftVersion } from "../../actions";
 import type { EvidencePack } from "@/lib/secondPassResearchEngine";
 
@@ -14,9 +15,10 @@ export default async function TopicDraftPage({
 }) {
   const { topicId } = await params;
   const { draftId } = await searchParams;
+  const { userId } = await requireSession();
 
-  const topic = await prisma.topic.findUnique({
-    where: { id: topicId },
+  const topic = await prisma.topic.findFirst({
+    where: { id: topicId, userId },
     select: {
       id: true,
       title: true,

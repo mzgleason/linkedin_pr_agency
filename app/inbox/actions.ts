@@ -2,11 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/auth";
 import { TopicStatus } from "@prisma/client";
 
 export type TopicDecision = "APPROVED" | "REJECTED" | "SAVED";
 
 export async function decideTopicStatusDirect(args: { topicId: string; decision: TopicDecision }) {
+  const { userId } = await requireSession();
   const topicId = args.topicId;
   const decision = args.decision;
 
@@ -19,13 +21,13 @@ export async function decideTopicStatusDirect(args: { topicId: string; decision:
   const nextStatus = decision as TopicStatus;
 
   const result = await prisma.topic.updateMany({
-    where: { id: topicId, status: { in: ["NEW", "SAVED"] } },
+    where: { id: topicId, userId, status: { in: ["NEW", "SAVED"] } },
     data: { status: nextStatus },
   });
 
   if (result.count === 0) {
-    const current = await prisma.topic.findUnique({
-      where: { id: topicId },
+    const current = await prisma.topic.findFirst({
+      where: { id: topicId, userId },
       select: { status: true },
     });
     if (!current) throw new Error("Topic not found");
