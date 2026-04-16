@@ -1,4 +1,5 @@
-﻿import { prisma } from "@/lib/prisma";
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 import InboxTopicList from "./topic-list";
 
 export const dynamic = "force-dynamic";
@@ -30,8 +31,15 @@ export default async function TopicInboxPage() {
       </div>
 
       {topics.length === 0 ? (
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-          No new topics.
+        <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+          <div className="font-medium text-neutral-900">No new topics yet.</div>
+          <div className="mt-1 text-neutral-600">Create your next batch (AI) or start from your own topic.</div>
+          <Link
+            href="/topics/new"
+            className="mt-3 inline-flex items-center justify-center rounded-xl bg-neutral-900 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-800"
+          >
+            Create topic
+          </Link>
         </div>
       ) : (
         <InboxTopicList initialTopics={topics} />
@@ -39,3 +47,4 @@ export default async function TopicInboxPage() {
     </div>
   );
 }
+
