@@ -1,0 +1,6 @@
+version: "1.0"
+skill:
+  display_name: "Design Review (Screenshots)"
+  short_description: "Capture Playwright screenshots and return prioritized UI/UX findings."
+  default_prompt: "Capture screenshots for key routes and provide a prioritized UI/UX review (P0/P1/P2) with actionable fixes and file pointers when code changes are appropriate."
+
