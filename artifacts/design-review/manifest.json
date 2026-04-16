@@ -1,0 +1,185 @@
+{
+  "baseUrl": "http://localhost:3000",
+  "createdAt": "2026-04-16T01:02:16.495Z",
+  "configPath": "C:\\Users\\markz\\linkedin_pr_agency\\skills\\design-review\\templates\\routes.prd.json",
+  "outDir": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review",
+  "storageState": null,
+  "screenshots": [
+    {
+      "name": "home",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\home__desktop.png",
+      "url": "http://localhost:3000/",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "inbox",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\inbox__desktop.png",
+      "url": "http://localhost:3000/inbox",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "create-topic",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\create-topic__desktop.png",
+      "url": "http://localhost:3000/topics/new",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "opinion-queue",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\opinion-queue__desktop.png",
+      "url": "http://localhost:3000/opinion-queue",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "topics",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\topics__desktop.png",
+      "url": "http://localhost:3000/topics",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "saved",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\saved__desktop.png",
+      "url": "http://localhost:3000/saved",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "health",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\health__desktop.png",
+      "url": "http://localhost:3000/api/health",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "health-db",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\health-db__desktop.png",
+      "url": "http://localhost:3000/api/health/db",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "home",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\home__mobile.png",
+      "url": "http://localhost:3000/",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844,
+        "isMobile": true,
+        "hasTouch": true
+      }
+    },
+    {
+      "name": "inbox",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\inbox__mobile.png",
+      "url": "http://localhost:3000/inbox",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844,
+        "isMobile": true,
+        "hasTouch": true
+      }
+    },
+    {
+      "name": "create-topic",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\create-topic__mobile.png",
+      "url": "http://localhost:3000/topics/new",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844,
+        "isMobile": true,
+        "hasTouch": true
+      }
+    },
+    {
+      "name": "opinion-queue",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\opinion-queue__mobile.png",
+      "url": "http://localhost:3000/opinion-queue",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844,
+        "isMobile": true,
+        "hasTouch": true
+      }
+    },
+    {
+      "name": "topics",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\topics__mobile.png",
+      "url": "http://localhost:3000/topics",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844,
+        "isMobile": true,
+        "hasTouch": true
+      }
+    },
+    {
+      "name": "saved",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\saved__mobile.png",
+      "url": "http://localhost:3000/saved",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844,
+        "isMobile": true,
+        "hasTouch": true
+      }
+    },
+    {
+      "name": "health",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\health__mobile.png",
+      "url": "http://localhost:3000/api/health",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844,
+        "isMobile": true,
+        "hasTouch": true
+      }
+    },
+    {
+      "name": "health-db",
+      "path": "C:\\Users\\markz\\linkedin_pr_agency\\artifacts\\design-review\\health-db__mobile.png",
+      "url": "http://localhost:3000/api/health/db",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844,
+        "isMobile": true,
+        "hasTouch": true
+      }
+    }
+  ]
+}

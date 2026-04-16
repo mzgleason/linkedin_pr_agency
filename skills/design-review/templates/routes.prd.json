@@ -1,0 +1,16 @@
+{
+  "viewports": [
+    { "name": "desktop", "width": 1440, "height": 900 },
+    { "name": "mobile", "width": 390, "height": 844, "isMobile": true, "hasTouch": true }
+  ],
+  "routes": [
+    { "name": "home", "path": "/", "prep": "scroll" },
+    { "name": "inbox", "path": "/inbox", "prep": "scroll" },
+    { "name": "create-topic", "path": "/topics/new", "prep": "scroll" },
+    { "name": "opinion-queue", "path": "/opinion-queue", "prep": "scroll" },
+    { "name": "topics", "path": "/topics", "prep": "scroll" },
+    { "name": "saved", "path": "/saved", "prep": "scroll" },
+    { "name": "health", "path": "/api/health", "fullPage": true },
+    { "name": "health-db", "path": "/api/health/db", "fullPage": true }
+  ]
+}

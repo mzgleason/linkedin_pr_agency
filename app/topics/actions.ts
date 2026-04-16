@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { generateLinkedInDraftVariants } from "@/lib/draftGenerator";
 import { generateEvidencePack } from "@/lib/secondPassResearchEngine";
 import { generateDraftVariantsAI, generateTakeSuggestionsAI } from "@/lib/aiLinkedInWriter";
+import { generateTrendingTopicsAI } from "@/lib/topicGenerator";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { DraftStatus } from "@prisma/client";
@@ -62,6 +63,47 @@ export async function createTopic(formData: FormData) {
         : undefined,
     },
   });
+
+  revalidatePath("/inbox");
+  revalidatePath("/topics");
+  redirect("/inbox");
+}
+
+export type GenerateTopicsResult = { ok: true } | { ok: false; error: string };
+
+export async function generateTopics(): Promise<GenerateTopicsResult> {
+  if (!process.env.OPENAI_API_KEY) {
+    return { ok: false, error: "Missing OPENAI_API_KEY. Add it to .env to enable AI topic generation." };
+  }
+
+  const topics = await generateTrendingTopicsAI({ count: 5 });
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const topic of topics) {
+        await tx.topic.create({
+          data: {
+            title: topic.title,
+            summary: topic.summary,
+            opinionPitch: topic.opinionPitch,
+            whyItMatters: topic.whyItMatters,
+            status: "NEW",
+            sources: topic.sources.length
+              ? {
+                  createMany: {
+                    data: topic.sources.map((url) => ({ url, sourceType: "ai" as const })),
+                    skipDuplicates: true,
+                  },
+                }
+              : undefined,
+          },
+          select: { id: true },
+        });
+      }
+    });
+  } catch {
+    return { ok: false, error: "Failed to save generated topics. Please try again." };
+  }
 
   revalidatePath("/inbox");
   revalidatePath("/topics");
